@@ -42,6 +42,7 @@
 
 #include "simple-udp.h"
 #include "servreg-hack.h"
+#include "heterogeneous-desider.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -49,7 +50,7 @@
 #define UDP_PORT 1234
 #define SERVICE_ID 190
 
-#define SEND_INTERVAL		(60 * CLOCK_SECOND)
+#define SEND_INTERVAL		(5 * CLOCK_SECOND)
 #define SEND_TIME		(random_rand() % (SEND_INTERVAL))
 
 static struct simple_udp_connection unicast_connection;
@@ -108,6 +109,8 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   simple_udp_register(&unicast_connection, UDP_PORT,
                       NULL, UDP_PORT, receiver);
 
+init_module();
+
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
 
@@ -124,9 +127,9 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
       printf("Sending unicast to ");
       uip_debug_ipaddr_print(addr);
       printf("\n");
-      sprintf(buf, "Message %d", message_number);
+      sprintf(buf, "%d", message_number);
       message_number++;
-      simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, addr);
+      heterogenous_simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, addr);
     } else {
       printf("Service %d not found\n", SERVICE_ID);
     }
