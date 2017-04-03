@@ -20,15 +20,9 @@
 #include <stdio.h>
 #include <string.h>
 
-/**
- * Example list structure and todo
- */
-
 
 LIST(tech_list);
 MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
-
-
 
 LIST(metrics_list);
 MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
@@ -82,7 +76,7 @@ void print_metrics_table() {
     struct metrics_struct *s;
 
     for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
-        printf("Metrics tech:  %d %d %d\n", s->bandwidth, s->energy, s->etx);
+        printf("Metrics tech:  %d %d %d\n", s->energy, s->bandwidth, s->etx);
     }
 }
 
