@@ -20,33 +20,15 @@
 #include <stdio.h>
 #include <string.h>
 
-#define WIFI_TECHNOLOGY 1
-#define RPL_TECHNOLOGY 2
-#define MAX_TECHNOLOGIES 4
-
-#define ENERGY 10
-#define ETX 11
-#define BANDWIDTH 12
-
 /**
  * Example list structure and todo
  */
-typedef struct tech_struct {
-    struct tech_struct *next;
-    int number;
-    char *name;
-} tech_struct;
+
 
 LIST(tech_list);
 MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
 
-typedef struct metrics_struct {
-    struct metrics_struct *next;
-    struct tech_struct *technology;
-    int energy;
-    int bandwidth;
-    int etx;
-} metrics_struct;
+
 
 LIST(metrics_list);
 MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);

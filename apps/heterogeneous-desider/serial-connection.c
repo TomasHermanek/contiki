@@ -5,6 +5,8 @@
 
 
 #include "serial-connection.h"
+#include "heterogeneous-desider.h"
+
 #include "contiki.h"
 #include "dev/serial-line.h"
 #include <stdio.h>
@@ -21,6 +23,11 @@ PROCESS_THREAD(serial_connection, ev, data)
         PROCESS_YIELD();
         if(ev == serial_line_event_message) {
             printf("received line: %s\n", (char *)data);
+
+            tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
+            add_metrics(rpl_tech, 12, 22, 55);
+
+            print_metrics_table();
         }
     }
     PROCESS_END();

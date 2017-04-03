@@ -14,6 +14,30 @@
 void
 init_module();
 
+#define WIFI_TECHNOLOGY 1
+#define RPL_TECHNOLOGY 2
+#define MAX_TECHNOLOGIES 4
+
+#define ENERGY 10
+#define ETX 11
+#define BANDWIDTH 12
+
+typedef struct tech_struct {
+    struct tech_struct *next;
+    int number;
+    char *name;
+} tech_struct;
+
+typedef struct metrics_struct {
+    struct metrics_struct *next;
+    struct tech_struct *technology;
+    int energy;
+    int bandwidth;
+    int etx;
+} metrics_struct;
+
+tech_struct *add_technology(int type);
+void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int etx);
 /*
 
 void
