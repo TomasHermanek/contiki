@@ -14,6 +14,7 @@
 
 #include "net/ipv6/uip-ds6.h"
 #include "net/ip/uip-debug.h"
+#include "simple-udp.h"
 
 #include "lib/memb.h"
 
@@ -26,6 +27,8 @@ MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
 
 LIST(metrics_list);
 MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
+
+static uip_ipaddr_t *src_ip = NULL;
 
 /**
  * Function allows to add technology into technology table
@@ -170,31 +173,36 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
     dst_technology = select_technology(data);
 
     if (dst_technology != NULL) {
-        if (dst_technology->number == RPL_TECHNOLOGY)
+        if (dst_technology->number == RPL_TECHNOLOGY) {
             printf("technology: RPL, %d\n", dst_technology->number);
-        else if (dst_technology->number == WIFI_TECHNOLOGY)
+            return simple_udp_sendto(c, data, datalen, to);
+        }
+        else if (dst_technology->number == WIFI_TECHNOLOGY) {
             printf("technology: WIFI, %d\n", dst_technology->number);
+            printf("!p");
+            uip_debug_ipaddr_print(to);
+            printf(";%d;%d;%s", c->remote_port, c->local_port, data);
+            printf("\n");
+        }
     }
-    // printf("%d\n", sizeof(technology_table) / sizeof(technology_table[0]));
-    // check if there is wifi technology
-    // 1. exctract metric keys k_en, k_bw, k_etx
-    // 2. calculate technology using m
-    return simple_udp_sendto(c, data, datalen, to);
+
 }
 
 /**
  * Initialize module
  */
-void init_module() {
+void init_module(uip_ipaddr_t *ip) {
     NETSTACK_MAC.off(1);
-
-//    tech_struct *wifi_tech = add_technology(WIFI_TECHNOLOGY);
-//    add_metrics(wifi_tech, 40, 1, 1);
+    src_ip = ip;
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
-    add_metrics(rpl_tech, 1, 40, 10);
-    print_tech_table();
-    print_metrics_table();
 
+    printf("!b\n");
+
+    printf("!r");
+    uip_debug_ipaddr_print(src_ip);
+    printf("\n");
+
+    add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
     process_start(&serial_connection, NULL);
 }
 
