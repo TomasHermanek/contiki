@@ -5,6 +5,8 @@
 
 #include "heterogeneous-desider.h"
 
+#include "serial-connection.h"
+
 #include "contiki.h"
 #include "lib/random.h"
 #include "sys/ctimer.h"
@@ -134,11 +136,15 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
  * Initialize module
  */
 void init_module() {
+    NETSTACK_MAC.off(1);
+
     tech_struct *wifi_tech = add_technology(WIFI_TECHNOLOGY);
     add_metrics(wifi_tech, 40, 1, 1);
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
     add_metrics(rpl_tech, 1, 40, 10);
     print_tech_table();
     print_metrics_table();
+
+    process_start(&serial_connection, NULL);
 }
 

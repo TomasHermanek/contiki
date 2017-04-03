@@ -1,1 +1,1 @@
-heterogeneous-desider_src = heterogeneous-desider.c
+heterogeneous-desider_src = heterogeneous-desider.c serial-connection.c
