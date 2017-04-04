@@ -22,7 +22,7 @@
  */
 typedef struct tech_struct {
     struct tech_struct *next;
-    int number;
+    int type;
     char *name;
 } tech_struct;
 

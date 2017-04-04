@@ -28,8 +28,31 @@ MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
 LIST(metrics_list);
 MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
 
-tech_struct *find_tech_by_number() {
+/**
+ * Allows to find technology by type, this function is useful when duplicates are finding
+ *
+ * @param type
+ * @return
+ */
+tech_struct *find_tech_by_type(int type) {
+    struct tech_struct *s;
 
+    for(s = list_head(tech_list); s != NULL; s = list_item_next(s)) {
+        if (s->type == type)
+            return s;
+    }
+    return NULL;
+}
+
+
+metrics_struct *find_metrics_by_tech(tech_struct *tech) {
+    struct metrics_struct *s;
+
+    for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
+        if (s->technology == tech)
+            return s;
+    }
+    return NULL;
 }
 
 /**
@@ -37,15 +60,17 @@ tech_struct *find_tech_by_number() {
  * @param type
  */
 tech_struct *add_technology(int type)  {
-    struct tech_struct *tech = NULL;            // todo ensure that tech in table is unique
-    tech = memb_alloc(&tech_memb);
-    if (tech==NULL) {
-        printf("Maximum tech capacity exceeded\n");
+    struct tech_struct *tech = find_tech_by_type(type);            // todo ensure that tech in table is unique
+
+    if (tech == NULL) {
+        tech = memb_alloc(&tech_memb);
+        if (tech==NULL) {
+            printf("Maximum tech capacity exceeded\n");
+        }
+        tech->type = type;
+
+        list_add(tech_list, tech);
     }
-    tech->number = type;
-
-    list_add(tech_list, tech);
-
     return tech;
 }
 
@@ -53,18 +78,19 @@ tech_struct *add_technology(int type)  {
  * Function allows to add metrics into Metrics table, which is linked to technology
  */
 void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int etx) {
-    struct metrics_struct *metrics = NULL;
-    metrics = memb_alloc(&metrics_memb);
-    if (metrics==NULL) {
-        printf("Maximum tech capacity exceeded\n");
-    }
+    struct metrics_struct *metrics = find_metrics_by_tech(technology);
 
+    if (metrics == NULL) {
+        metrics = memb_alloc(&metrics_memb);
+        if (metrics==NULL) {
+            printf("Maximum tech capacity exceeded\n");
+        }
+        list_add(metrics_list, metrics);
+    }
     metrics->technology = technology;
     metrics->energy = energy;
     metrics->bandwidth = bandwidth;
     metrics->etx = etx;
-
-    list_add(metrics_list, metrics);
 }
 
 /**
@@ -73,10 +99,8 @@ void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int 
 void print_tech_table() {
     struct tech_struct *s;
 
-    for(s = list_head(tech_list);
-        s != NULL;
-        s = list_item_next(s)) {
-        printf("List element number %d\n", s->number);
+    for(s = list_head(tech_list); s != NULL; s = list_item_next(s)) {
+        printf("List element type %d\n", s->type);
     }
 }
 
@@ -99,7 +123,7 @@ void print_metrics_table() {
  * @param etx
  */
 void fill_keys(const void *data, int *en, int *bw, int *etx) {
-    int number = (int) data;
+    int type = (int) data;
     int val = strtol(data, &data, 10);
 
     if (val % 2 == 0) {
@@ -175,12 +199,12 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
     dst_technology = select_technology(data);
 
     if (dst_technology != NULL) {
-        if (dst_technology->number == RPL_TECHNOLOGY) {
-            printf("technology: RPL, %d\n", dst_technology->number);
+        if (dst_technology->type == RPL_TECHNOLOGY) {
+            printf("technology: RPL, %d\n", dst_technology->type);
             return simple_udp_sendto(c, data, datalen, to);
         }
-        else if (dst_technology->number == WIFI_TECHNOLOGY) {
-            printf("technology: WIFI, %d\n", dst_technology->number);
+        else if (dst_technology->type == WIFI_TECHNOLOGY) {
+            printf("technology: WIFI, %d\n", dst_technology->type);
             printf("!p");
             uip_debug_ipaddr_print(to);
             printf(";%d;%d;%s", c->remote_port, c->local_port, data);
