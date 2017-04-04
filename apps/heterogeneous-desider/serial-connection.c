@@ -77,16 +77,25 @@ int handle_prints(char *data, int len) {
     return 0;
 }
 
+int handle_requests(char *data, int len) {
+    if (data[1] == 'c') {
+        print_src_ip();
+        return 1;
+    }
+    return 0;
+}
+
 int handle_input(char *data) {
     int len = strlen(data);
-    // printf("input length %d\n", len);
-    // printf("first char %c\n", data[0]);
 
     if (data[0] == '!') {
         return handle_commands(data, len);
     }
     else if (data[0] == '#') {
         return handle_prints(data, len);
+    }
+    else if (data[0] == '?') {
+        return handle_requests(data, len);
     }
     return 0;
 }
@@ -102,14 +111,8 @@ PROCESS_THREAD(serial_connection, ev, data)
     for(;;) {
         PROCESS_YIELD();
         if(ev == serial_line_event_message) {
-            printf("received line: %s\n", (char *)data);
-
+            //printf("received line: %s\n", (char *)data);
             handle_input((char *)data);
-
-            //tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
-            //add_metrics(rpl_tech, 12, 22, 55);
-
-
         }
     }
     PROCESS_END();
