@@ -28,14 +28,16 @@ MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
 LIST(metrics_list);
 MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
 
-static uip_ipaddr_t *src_ip = NULL;
+tech_struct *find_tech_by_number() {
+
+}
 
 /**
  * Function allows to add technology into technology table
  * @param type
  */
 tech_struct *add_technology(int type)  {
-    struct tech_struct *tech = NULL;
+    struct tech_struct *tech = NULL;            // todo ensure that tech in table is unique
     tech = memb_alloc(&tech_memb);
     if (tech==NULL) {
         printf("Maximum tech capacity exceeded\n");
@@ -188,19 +190,30 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
 
 }
 
+void print_src_ip() {
+    printf("!r");
+    int i;
+    uint8_t state;
+    for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
+        state = uip_ds6_if.addr_list[i].state;
+        if(uip_ds6_if.addr_list[i].isused &&
+           (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
+            uip_debug_ipaddr_print(&uip_ds6_if.addr_list[i].ipaddr);
+            printf(";");
+        }
+    }
+    printf("\n");
+}
+
 /**
  * Initialize module
  */
-void init_module(uip_ipaddr_t *ip) {
+void init_module() {
     NETSTACK_MAC.off(1);
-    src_ip = ip;
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
 
     printf("!b\n");
-
-    printf("!r");
-    uip_debug_ipaddr_print(src_ip);
-    printf("\n");
+    print_src_ip();
 
     add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
     process_start(&serial_connection, NULL);

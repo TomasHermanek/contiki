@@ -72,7 +72,7 @@ receiver(struct simple_udp_connection *c,
          receiver_port, sender_port, datalen);
 }
 /*---------------------------------------------------------------------------*/
-static uip_ipaddr_t
+static void
 set_global_address(void)
 {
   uip_ipaddr_t ipaddr;
@@ -92,7 +92,6 @@ set_global_address(void)
       printf("\n");
     }
   }
-  return ipaddr;
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(unicast_sender_process, ev, data)
@@ -100,19 +99,17 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   static struct etimer periodic_timer;
   static struct etimer send_timer;
   uip_ipaddr_t *addr;
-  uip_ipaddr_t src_addr;
 
   PROCESS_BEGIN();
 
   servreg_hack_init();
 
-  src_addr = set_global_address();
+  set_global_address();
 
   simple_udp_register(&unicast_connection, UDP_PORT,
                       NULL, UDP_PORT, receiver);
 
-
-  init_module(&src_addr);
+  init_module();
 
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
