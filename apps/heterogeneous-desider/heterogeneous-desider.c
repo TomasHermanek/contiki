@@ -28,6 +28,8 @@ MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
 LIST(metrics_list);
 MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
 
+simple_udp_callback receiver_callback;
+
 /**
  * Allows to find technology by type, this function is useful when duplicates are finding
  *
@@ -213,6 +215,30 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
     }
 
 }
+
+
+int heterogenous_udp_register(struct simple_udp_connection *c, uint16_t local_port, uip_ipaddr_t *remote_addr,
+                              uint16_t remote_port, simple_udp_callback receive_callback) {
+    receiver_callback = receive_callback;
+    simple_udp_register(c, local_port, remote_addr, remote_port, receive_callback);
+}
+
+
+void
+heterogenous_udp_callback(struct simple_udp_connection *c,
+         const uip_ipaddr_t *sender_addr,
+         uint16_t sender_port,
+         const uip_ipaddr_t *receiver_addr,
+         uint16_t receiver_port,
+         const uint8_t *data,
+         uint16_t datalen)
+{
+    printf("3 ");
+    uip_debug_ipaddr_print(&sender_addr);
+    printf("\n");
+    receiver_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
+}
+
 
 void print_src_ip() {
     printf("!r");

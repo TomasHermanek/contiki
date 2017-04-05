@@ -40,6 +40,7 @@
 
 #include "simple-udp.h"
 #include "servreg-hack.h"
+#include "heterogeneous-desider.h"
 
 #include "net/rpl/rpl.h"
 
@@ -131,8 +132,9 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
 
   servreg_hack_register(SERVICE_ID, ipaddr);
 
-  simple_udp_register(&unicast_connection, UDP_PORT,
-                      NULL, UDP_PORT, receiver);
+  heterogenous_udp_register(&unicast_connection, UDP_PORT, NULL, UDP_PORT, receiver);
+
+  init_module();
 
   while(1) {
     PROCESS_WAIT_EVENT();
