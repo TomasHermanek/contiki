@@ -109,6 +109,7 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
   SERVER_NODE(&server_ipaddr);
 
   coap_init_engine();
+
 //tomas
   init_module();
 
