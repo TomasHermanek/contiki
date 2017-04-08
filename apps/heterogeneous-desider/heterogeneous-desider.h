@@ -13,9 +13,8 @@
 
 #define MAX_TECHNOLOGIES 4
 
-#define ENERGY 10
-#define ETX 11
-#define BANDWIDTH 12
+#define MODE_ROOT = 1
+#define MODE_NODE = 2
 
 /**
  * Structure defines technology unit

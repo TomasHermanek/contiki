@@ -30,6 +30,9 @@ MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
 
 simple_udp_callback receiver_callback;
 
+static struct simple_udp_connection *unicast_connection;    // Unicast connectin of parrent process
+static int mode;
+
 /**
  * Allows to find technology by type, this function is useful when duplicates are finding
  *
@@ -217,6 +220,24 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
 }
 
 
+/**
+ * ToDo function which must be used by Ondrej to send packet using coap
+ *
+ * @param c
+ * @param data
+ * @param len
+ * @param toaddr
+ * @param toport
+ * @return
+ */
+int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, int len, const uip_ipaddr_t *toaddr, uint16_t toport) {
+    //todo ONDREJ -> call Ondrej function for parsing k-values (for metric)
+    printf("Sent using heterogeneous sent\n");
+    uip_udp_packet_sendto(c, data, len, toaddr, toport);
+    return 0;
+}
+
+
 int heterogenous_udp_register(struct simple_udp_connection *c, uint16_t local_port, uip_ipaddr_t *remote_addr,
                               uint16_t remote_port, simple_udp_callback receive_callback) {
     receiver_callback = receive_callback;
@@ -258,7 +279,7 @@ void print_src_ip() {
 /**
  * Initialize module
  */
-void init_module() {
+void init_module(struct simple_udp_connection *unicast_connection, int mode) {
     NETSTACK_MAC.off(1);
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
 
