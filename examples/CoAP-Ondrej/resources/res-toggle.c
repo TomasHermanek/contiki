@@ -31,50 +31,33 @@
 
 /**
  * \file
- *      CoAP module for reliable transport
+ *      Example resource
  * \author
  *      Matthias Kovatsch <kovatsch@inf.ethz.ch>
  */
 
-#ifndef COAP_TRANSACTIONS_H_
-#define COAP_TRANSACTIONS_H_
+#include "contiki.h"
 
-#include "er-coap.h"
+#if PLATFORM_HAS_LEDS
 
-/*
- * Modulo mask (thus +1) for a random number to get the tick number for the random
- * retransmission time between COAP_RESPONSE_TIMEOUT and COAP_RESPONSE_TIMEOUT*COAP_RESPONSE_RANDOM_FACTOR.
- */
-#define COAP_RESPONSE_TIMEOUT_TICKS         (CLOCK_SECOND * COAP_RESPONSE_TIMEOUT)
-#define COAP_RESPONSE_TIMEOUT_BACKOFF_MASK  (long)((CLOCK_SECOND * COAP_RESPONSE_TIMEOUT * ((float)COAP_RESPONSE_RANDOM_FACTOR - 1.0)) + 0.5) + 1
+#include <string.h>
+#include "contiki.h"
+#include "rest-engine.h"
+#include "dev/leds.h"
 
-/* container for transactions with message buffer and retransmission info */
-typedef struct coap_transaction {
-  struct coap_transaction *next;        /* for LIST */
+static void res_post_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 
-  uint16_t mid;
-  struct etimer retrans_timer;
-  uint8_t retrans_counter;
+/* A simple actuator example. Toggles the red led */
+RESOURCE(res_toggle,
+         "title=\"Red LED\";rt=\"Control\"",
+         NULL,
+         res_post_handler,
+         NULL,
+         NULL);
 
-  uip_ipaddr_t addr;
-  uint16_t port;
-
-  restful_response_handler callback;
-  void *callback_data;
-
-  uint16_t packet_len;
-  uint8_t packet[COAP_MAX_PACKET_SIZE + 1];     /* +1 for the terminating '\0' which will not be sent
-                                                 * Use snprintf(buf, len+1, "", ...) to completely fill payload */
-} coap_transaction_t;
-
-void coap_register_as_transaction_handler();
-
-coap_transaction_t *coap_new_transaction(uint16_t mid, uip_ipaddr_t *addr,
-                                         uint16_t port);
-void coap_send_transaction(coap_transaction_t *t);
-void coap_clear_transaction(coap_transaction_t *t);
-coap_transaction_t *coap_get_transaction_by_mid(uint16_t mid);
-
-void coap_check_transactions();
-
-#endif /* COAP_TRANSACTIONS_H_ */
+static void
+res_post_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+{
+  leds_toggle(LEDS_RED);
+}
+#endif /* PLATFORM_HAS_LEDS */
