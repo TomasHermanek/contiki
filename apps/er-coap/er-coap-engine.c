@@ -64,6 +64,7 @@ static service_callback_t service_cbk = NULL;
 /*---------------------------------------------------------------------------*/
 /*- Internal API ------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+//tomas
 static int
 coap_receive(void)
 {
@@ -122,6 +123,15 @@ coap_receive(void)
             coap_set_token(response, message->token, message->token_len);
             /* get offset for blockwise transfers */
           }
+//ondrej dole
+          if (IS_OPTION(message, COAP_OPTION_METRIC)){
+	     printf("Preparing response metrics\n");
+		response->metric_len = message->metric_len;
+  		memcpy(response->metric, message->metric, response->metric_len);
+  		SET_OPTION(response, COAP_OPTION_METRIC);
+            coap_metrics_deserialization(&response->metric);
+          }
+//ondrej hore
           if(coap_get_header_block2
                (message, &block_num, NULL, &block_size, &block_offset)) {
             PRINTF("Blockwise: block request %lu (%u/%u) @ %lu bytes\n",

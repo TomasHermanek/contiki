@@ -50,6 +50,9 @@
 #define COAP_TOKEN_LEN                       8  /* The maximum number of bytes for the Token */
 #define COAP_ETAG_LEN                        8  /* The maximum number of bytes for the ETag */
 
+//ondrej
+#define COAP_METRIC_LEN 		14
+
 #define COAP_HEADER_VERSION_MASK             0xC0
 #define COAP_HEADER_VERSION_POSITION         6
 #define COAP_HEADER_TYPE_MASK                0x30
@@ -76,10 +79,24 @@ typedef enum {
   COAP_DELETE
 } coap_method_t;
 
+//ondrej dole
+/*CoAP Metric Profiles*/
+typedef enum {
+  PROFILE_LOWPOWER = 1,               
+  PROFILE_SPEED = 2,                
+  PROFILE_RELIABILITY = 3,                
+  PROFILE_MULTIMEDIA = 4,
+  PROFILE_SECURITY = 5                
+} coap_metric_profile;
+
+#define MAX_COUNT 10
+//ondrej hore
+
+
 /* CoAP response codes */
 typedef enum {
   NO_ERROR = 0,
-
+	
   CREATED_2_01 = 65,            /* CREATED */
   DELETED_2_02 = 66,            /* DELETED */
   VALID_2_03 = 67,              /* NOT_MODIFIED */
@@ -135,6 +152,8 @@ typedef enum {
   COAP_OPTION_PROXY_URI = 35,   /* 1-1034 B */
   COAP_OPTION_PROXY_SCHEME = 39,        /* 1-255 B */
   COAP_OPTION_SIZE1 = 60,       /* 0-4 B */
+//ondrej
+  COAP_OPTION_METRIC=70, /*0-16*/
 } coap_option_t;
 
 /* CoAP Content-Formats */

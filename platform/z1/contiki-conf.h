@@ -65,7 +65,7 @@
    enabled. This is needed for ContikiMAC, which needs packets to be
    larger than a specified size, if no ContikiMAC header should be
    used. */
-#define SICSLOWPAN_CONF_COMPRESSION_THRESHOLD 63
+#define SICSLOWPAN_CONF_COMPRESSION_THRESHOLD 100//150//63 ondrej
 
 #define CC2420_CONF_AUTOACK                   1
 #define NETSTACK_RDC_CHANNEL_CHECK_RATE       8
@@ -200,10 +200,10 @@
 #define UIP_CONF_IP_FORWARD             0
 
 #ifndef UIP_CONF_BUFFER_SIZE
-#define UIP_CONF_BUFFER_SIZE            140
+#define UIP_CONF_BUFFER_SIZE            250//350//140 ondrej
 #endif
 
-#define SICSLOWPAN_CONF_COMPRESSION             SICSLOWPAN_COMPRESSION_HC06
+#define SICSLOWPAN_CONF_COMPRESSION             SICSLOWPAN_CONF_COMPRESSION_IPV6 //SICSLOWPAN_COMPRESSION_HC06 ondrej
 #ifndef SICSLOWPAN_CONF_FRAG
 #define SICSLOWPAN_CONF_FRAG                    1
 #define SICSLOWPAN_CONF_MAXAGE                  8
@@ -213,7 +213,7 @@
 #define UIP_CONF_IP_FORWARD                     1
 
 #ifndef UIP_CONF_BUFFER_SIZE
-#define UIP_CONF_BUFFER_SIZE                    108
+#define UIP_CONF_BUFFER_SIZE                    250//108 ondrej
 #endif
 
 #endif /* NETSTACK_CONF_WITH_IPV6 */
@@ -223,7 +223,7 @@
 #define UIP_CONF_DHCP_LIGHT
 #define UIP_CONF_LLH_LEN                        0
 #ifndef UIP_CONF_RECEIVE_WINDOW
-#define UIP_CONF_RECEIVE_WINDOW                 48
+#define UIP_CONF_RECEIVE_WINDOW                 200//250//48 ondrej
 #endif
 #define UIP_CONF_TCP_MSS                        48
 #define UIP_CONF_MAX_CONNECTIONS                4
