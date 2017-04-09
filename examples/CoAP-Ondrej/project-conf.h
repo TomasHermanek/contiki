@@ -69,7 +69,7 @@
 
 /* Increase rpl-border-router IP-buffer when using more than 64. */
 #undef REST_MAX_CHUNK_SIZE
-#define REST_MAX_CHUNK_SIZE            150//48 //Ondrej
+#define REST_MAX_CHUNK_SIZE            80//150//48 //Ondrej
 
 
 /* Estimate your header size, especially when using Proxy-Uri. */

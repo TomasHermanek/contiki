@@ -26,14 +26,17 @@ extern int variable;
 static void
 res_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {	
+printf("Entering example resource\n");
   const char *len = NULL;
   char number[5]="123";
 variable--;
+//printf("2\n");
 char str[15];
 sprintf(number, "%d", variable);
+//printf("3\n");
   char const *const message = concat("Current value is: ", number);
-  int length = 50; 
-
+  int length = 30; 
+//printf("4\n");
   if(REST.get_query_variable(request, "len", &len)) {
     length = atoi(len);
     if(length < 0) {
@@ -46,8 +49,11 @@ sprintf(number, "%d", variable);
   } else {
     memcpy(buffer, message, length);
   } REST.set_header_content_type(response, REST.type.TEXT_PLAIN); 
+//printf("5\n");
   REST.set_header_etag(response, (uint8_t *)&length, 1);
+//printf("6\n");
   REST.set_response_payload(response, buffer, length);
+//printf("7\n");
 }
 
 

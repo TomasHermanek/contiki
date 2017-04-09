@@ -66,7 +66,7 @@
 #define LOCAL_PORT      UIP_HTONS(COAP_DEFAULT_PORT + 1)
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-#define TOGGLE_INTERVAL 10
+#define TOGGLE_INTERVAL 1
 
 
 #define PRINT6ADDR(addr) printf("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -109,7 +109,6 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
   SERVER_NODE(&server_ipaddr);
 
   coap_init_engine();
-
 //tomas
   init_module();
 
@@ -122,7 +121,7 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
       coap_add_profile(resource_url, PROFILE_SPEED, PROFILE_LOWPOWER, 1, server_ipaddr/*, connection_list*/);
      coap_add_profile(resource_url2, PROFILE_RELIABILITY, 0, 1, server_ipaddr/*, connection_list*/);
       coap_add_profile(resource_url3, PROFILE_SECURITY, PROFILE_SPEED, 1, server_ipaddr/*, connection_list*/);
-      coap_add_profile(resource_url4, PROFILE_MULTIMEDIA, PROFILE_SPEED, 0, server_ipaddr/*, connection_list*/);
+     
   while(1) {
     PROCESS_YIELD();
     if(etimer_expired(&et)) {
@@ -131,8 +130,8 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
       coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
 
       coap_set_header_uri_path(request, resource_url);
-
-      coap_set_profile(resource_url2, request, &server_ipaddr);
+      //coap_add_profile(resource_url4, PROFILE_MULTIMEDIA, PROFILE_SPEED, 0, server_ipaddr/*, connection_list*/);
+      coap_set_profile(resource_url, request, &server_ipaddr);
 
       const char msg[] = "Example";
 
@@ -147,7 +146,7 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
 
 #if PLATFORM_HAS_BUTTON
     } else if(ev == sensors_event && data == &button_sensor) {
-
+       coap_change_profile_priority(resource_url, PROFILE_SPEED, &server_ipaddr);
      //setHigherPriorities()
 	//setLowerPriorities()
 

@@ -90,9 +90,9 @@ void
 coap_send_transaction(coap_transaction_t *t)
 {
   PRINTF("Sending transaction %u\n", t->mid);
-
-  coap_send_message(&t->addr, t->port, t->packet, t->packet_len);
-
+//ondrej docasne
+  coap_send_message_response(&t->addr, t->port, t->packet, t->packet_len);
+//ondrej
   if(COAP_TYPE_CON ==
      ((COAP_HEADER_TYPE_MASK & t->packet[0]) >> COAP_HEADER_TYPE_POSITION)) {
     if(t->retrans_counter < COAP_MAX_RETRANSMIT) {

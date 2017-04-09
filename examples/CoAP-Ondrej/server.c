@@ -78,10 +78,8 @@ variable=100;
   /* Initialize the REST engine. */
 printf("LL header: %u\n", UIP_LLH_LEN);
   rest_init_engine();
-
 //tomas
   init_module();
-
 //printf("LL header: %u\n", UIP_LLH_LEN);
   /*
    * Bind the resources to their Uri-Path.
