@@ -15,6 +15,7 @@
 #include "net/ipv6/uip-ds6.h"
 #include "net/ip/uip-debug.h"
 #include "simple-udp.h"
+#include "net/ipv6/uip6.h"
 
 #include "lib/memb.h"
 
@@ -244,6 +245,9 @@ int heterogenous_udp_register(struct simple_udp_connection *c, uint16_t local_po
     simple_udp_register(c, local_port, remote_addr, remote_port, receive_callback);
 }
 
+int heterogeneous_forwarding_callback() {
+    printf("hello from the callback side\n");
+}
 
 void
 heterogenous_udp_callback(struct simple_udp_connection *c,
@@ -282,6 +286,7 @@ void print_src_ip() {
 void init_module(struct simple_udp_connection *unicast_connection, int mode) {
     NETSTACK_MAC.off(1);
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
+    set_callback(heterogeneous_forwarding_callback);
 
     printf("!b\n");
     print_src_ip();
