@@ -151,6 +151,17 @@ uint8_t uip_ext_len = 0;
 uint8_t uip_ext_opt_offset = 0;
 /** @} */
 
+/*
+ * Callback for heterogeneous desider
+ */
+typedef int (* callback)(void);
+
+callback desider_callback;
+
+void set_callback(int (callback_function)(void)) {
+    desider_callback = callback_function;
+}
+
 /*---------------------------------------------------------------------------*/
 /* Buffers                                                                   */
 /*---------------------------------------------------------------------------*/
@@ -1241,7 +1252,28 @@ uip_process(uint8_t flag)
       }
 
       UIP_IP_BUF->ttl = UIP_IP_BUF->ttl - 1;
+
       PRINTF("Forwarding packet to ");
+
+      printf("forwarding\n");
+      printf("SRC ip: ");
+      uip_debug_ipaddr_print(&UIP_IP_BUF->srcipaddr);    // gut
+       printf("\n%s\n", uip_appdata-4);  // gut
+      printf("DST ip: ");
+      uip_debug_ipaddr_print(&UIP_IP_BUF->destipaddr);  // gut
+      printf("\n");
+      printf("sport: %d\n", UIP_HTONS(UIP_UDP_BUF->srcport)); // gut
+      printf("dport: %d\n", UIP_HTONS(UIP_UDP_BUF->destport)); // gut
+      printf("sport: %d\n", UIP_HTONS(&UIP_UDP_BUF->srcport)); // gut
+      printf("dport: %d\n", UIP_HTONS(&UIP_UDP_BUF->destport)); // gut
+      printf("sport: %d\n", UIP_UDP_BUF->srcport); // gut
+      printf("dport: %d\n", UIP_UDP_BUF->destport); // gut
+      printf("sport: %d\n", &UIP_UDP_BUF->srcport); // gut
+      printf("dport: %d\n", &UIP_UDP_BUF->destport); // gut
+
+        if (desider_callback)
+            desider_callback()
+
       PRINT6ADDR(&UIP_IP_BUF->destipaddr);
       PRINTF("\n");
       UIP_STAT(++uip_stat.ip.forwarded);
@@ -2338,6 +2370,7 @@ void
 uip_send(const void *data, int len)
 {
   int copylen;
+    printf("SENDING\n");
 
   if(uip_sappdata != NULL) {
     copylen = MIN(len, UIP_BUFSIZE - UIP_LLH_LEN - UIP_TCPIP_HLEN -
