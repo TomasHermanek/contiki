@@ -157,7 +157,7 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
       printf("\n");
       sprintf(buf, "%d", message_number);
       message_number++;
-      simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, addr);
+      heterogenous_simple_udp_sendto(&unicast_connection, buf, strlen(buf) + 1, addr);
     } else {
       printf("Service %d not found\n", SERVICE_ID);
     }

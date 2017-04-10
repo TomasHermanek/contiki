@@ -1254,25 +1254,29 @@ uip_process(uint8_t flag)
       UIP_IP_BUF->ttl = UIP_IP_BUF->ttl - 1;
 
       PRINTF("Forwarding packet to ");
+        // todo debug src and dst UDP port
+//      printf("forwarding\n");
+//
+//      printf("sport: %d\n", UIP_HTONS(UIP_UDP_BUF->srcport)); // gut
+//      printf("dport: %d\n", UIP_HTONS(UIP_UDP_BUF->destport)); // gut
+//      printf("sport: %d\n", UIP_HTONS(&UIP_UDP_BUF->srcport)); // gut
+//      printf("dport: %d\n", UIP_HTONS(&UIP_UDP_BUF->destport)); // gut
+//      printf("sport: %d\n", UIP_UDP_BUF->srcport); // gut
+//      printf("dport: %d\n", UIP_UDP_BUF->destport); // gut
+//      printf("sport: %d\n", &UIP_UDP_BUF->srcport); // gut
+//      printf("dport: %d\n", &UIP_UDP_BUF->destport); // gut
+//
+//      printf("buff len: %d\n", UIP_BUFSIZE);// gut
+//
+//      printf("data len %d\n",strlen(uip_appdata-4));// gut
+//      int i;
+//      for (i = 0; i < UIP_BUFSIZE; i++) {
+//        printf("%c", uip_buf[i]);
+//      }
+//      printf("\n");
 
-      printf("forwarding\n");
-      printf("SRC ip: ");
-      uip_debug_ipaddr_print(&UIP_IP_BUF->srcipaddr);    // gut
-       printf("\n%s\n", uip_appdata-4);  // gut
-      printf("DST ip: ");
-      uip_debug_ipaddr_print(&UIP_IP_BUF->destipaddr);  // gut
-      printf("\n");
-      printf("sport: %d\n", UIP_HTONS(UIP_UDP_BUF->srcport)); // gut
-      printf("dport: %d\n", UIP_HTONS(UIP_UDP_BUF->destport)); // gut
-      printf("sport: %d\n", UIP_HTONS(&UIP_UDP_BUF->srcport)); // gut
-      printf("dport: %d\n", UIP_HTONS(&UIP_UDP_BUF->destport)); // gut
-      printf("sport: %d\n", UIP_UDP_BUF->srcport); // gut
-      printf("dport: %d\n", UIP_UDP_BUF->destport); // gut
-      printf("sport: %d\n", &UIP_UDP_BUF->srcport); // gut
-      printf("dport: %d\n", &UIP_UDP_BUF->destport); // gut
-
-        if (desider_callback)
-            desider_callback()
+      if (desider_callback)
+        desider_callback();
 
       PRINT6ADDR(&UIP_IP_BUF->destipaddr);
       PRINTF("\n");
