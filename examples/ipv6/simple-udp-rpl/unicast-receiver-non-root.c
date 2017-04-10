@@ -81,7 +81,7 @@ set_global_address(void)
   int i;
   uint8_t state;
 
-  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
+  uip_ip6addr(&ipaddr, 0xaaaa, 0, 0, 0, 0, 0, 0, 0);
   uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
   uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
@@ -107,10 +107,10 @@ create_rpl_dag(uip_ipaddr_t *ipaddr)
   if(root_if != NULL) {
     rpl_dag_t *dag;
     uip_ipaddr_t prefix;
-
+    
     rpl_set_root(RPL_DEFAULT_INSTANCE, ipaddr);
     dag = rpl_get_any_dag();
-    uip_ip6addr(&prefix, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
+    uip_ip6addr(&prefix, 0xaaaa, 0, 0, 0, 0, 0, 0, 0);
     rpl_set_prefix(dag, &prefix, 64);
     PRINTF("created a new RPL dag\n");
   } else {
@@ -128,11 +128,12 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
 
   ipaddr = set_global_address();
 
-  create_rpl_dag(ipaddr);
+  //create_rpl_dag(ipaddr);
 
   servreg_hack_register(SERVICE_ID, ipaddr);
 
-  heterogenous_udp_register(&unicast_connection, UDP_PORT, NULL, UDP_PORT, receiver);
+  simple_udp_register(&unicast_connection, UDP_PORT,
+                      NULL, UDP_PORT, receiver);
 
   init_module();
 
