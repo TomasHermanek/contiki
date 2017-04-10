@@ -194,6 +194,10 @@ int handle_requests(char *data, int len) {
         print_src_ip();
         return 1;
     }
+    if (data[1] == 'n') {
+        print_neighbours();
+        return 1;
+    }
     return 0;
 }
 

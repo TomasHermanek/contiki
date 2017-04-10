@@ -124,6 +124,18 @@ void print_metrics_table() {
 }
 
 /**
+ * Prints all border router neighbours todo check if deeper leafs are aso part of this print
+ */
+void print_neighbours() {
+    uip_ds6_route_t *r;
+    printf("!n;");
+    for(r = uip_ds6_route_head(); r != NULL; r = uip_ds6_route_next(r)) {
+        uip_debug_ipaddr_print(&r->ipaddr);
+        printf(";");
+    }
+}
+
+/**
  * ToDo this section must implement keys extraction from Ondrej part
  * @param data
  * @param en
@@ -305,6 +317,7 @@ void init_module(struct simple_udp_connection *unicast_connection, int mode) {
 
     printf("!b\n");
     print_src_ip();
+    print_neighbours();
 
     add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
     process_start(&serial_connection, NULL);
