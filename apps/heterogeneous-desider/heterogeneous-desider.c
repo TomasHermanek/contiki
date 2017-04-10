@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <string.h>
 
+static uint8_t databuffer[UIP_BUFSIZE];
+#define UIP_IP_BUF   ((struct uip_udpip_hdr *)&uip_buf[UIP_LLH_LEN])
 
 LIST(tech_list);
 MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
@@ -250,7 +252,16 @@ int heterogenous_udp_register(struct simple_udp_connection *c, uint16_t local_po
 }
 
 int heterogeneous_forwarding_callback() {
+
+    //memcpy(databuffer, uip_appdata, uip_datalen());
+
     printf("hello from the callback side\n");
+    printf("packet to send from: ");
+    uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
+    printf(" to: ");
+    uip_debug_ipaddr_print(&(UIP_IP_BUF->destipaddr));
+    printf(" srcPort: %d dstPort: %d data: %s length: %d \n",
+           UIP_HTONS(UIP_IP_BUF->srcport), UIP_HTONS(UIP_IP_BUF->destport), uip_appdata-4, uip_datalen());
 }
 
 void
