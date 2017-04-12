@@ -42,6 +42,7 @@
 
 #include "simple-udp.h"
 #include "servreg-hack.h"
+#include "heterogeneous-desider.h"
 
 #include "net/rpl/rpl.h"
 
@@ -138,7 +139,7 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
 
   etimer_set(&periodic_timer, SEND_INTERVAL);
 
-  init_module();
+  init_module(MODE_ROOT);
 
   while(1) {
 

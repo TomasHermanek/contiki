@@ -134,7 +134,7 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
 
   heterogenous_udp_register(&unicast_connection, UDP_PORT, NULL, UDP_PORT, receiver);
 
-  init_module();
+  init_module(MODE_ROOT);
 
   while(1) {
     PROCESS_WAIT_EVENT();

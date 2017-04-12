@@ -109,7 +109,7 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
   simple_udp_register(&unicast_connection, UDP_PORT,
                       NULL, UDP_PORT, receiver);
 
-  init_module();
+  init_module(MODE_NODE);
 
   etimer_set(&periodic_timer, SEND_INTERVAL);
   while(1) {
