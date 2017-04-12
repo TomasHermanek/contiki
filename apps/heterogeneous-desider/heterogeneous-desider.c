@@ -34,7 +34,7 @@ MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
 simple_udp_callback receiver_callback;
 
 static struct simple_udp_connection *unicast_connection;    // Unicast connectin of parrent process
-static int mode;
+static int device_mode;
 
 /**
  * Allows to find technology by type, this function is useful when duplicates are finding
@@ -307,13 +307,18 @@ void print_src_ip() {
     printf("\n");
 }
 
+void print_mode() {
+    printf("!c%d\n", device_mode);
+}
+
 /**
  * Initialize module
  */
-void init_module(struct simple_udp_connection *unicast_connection, int mode) {
+void init_module(int mode) {
     NETSTACK_MAC.off(1);
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
     set_callback(heterogeneous_forwarding_callback);
+    device_mode = mode;
 
     printf("!b\n");
     print_src_ip();

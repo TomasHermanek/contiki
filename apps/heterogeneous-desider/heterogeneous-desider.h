@@ -15,8 +15,8 @@
 
 #define MAX_TECHNOLOGIES 4
 
-#define MODE_ROOT = 1
-#define MODE_NODE = 2
+#define MODE_ROOT 1
+#define MODE_NODE 2
 
 /**
  * Structure defines technology unit
