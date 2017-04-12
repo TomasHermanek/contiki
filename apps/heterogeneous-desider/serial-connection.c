@@ -192,6 +192,7 @@ int handle_prints(char *data, int len) {
 int handle_requests(char *data, int len) {
     if (data[1] == 'c') {
         print_src_ip();
+        print_mode();
         return 1;
     }
     if (data[1] == 'n') {
