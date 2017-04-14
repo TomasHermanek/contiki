@@ -6,6 +6,7 @@
 #include "heterogeneous-desider.h"
 
 #include "serial-connection.h"
+#include "blinker.h"
 
 #include "contiki.h"
 #include "lib/random.h"
@@ -221,11 +222,13 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
     if (dst_technology != NULL) {
         if (dst_technology->type == RPL_TECHNOLOGY) {
             printf("technology: RPL, %d\n", dst_technology->type);
+            leds_on(RPL_SEND_LED);
             return simple_udp_sendto(c, data, datalen, to);
         }
         else if (dst_technology->type == WIFI_TECHNOLOGY) {
             printf("technology: WIFI, %d\n", dst_technology->type);
             printf("!p");
+            leds_on(WIFI_SEND_LED);
             uip_debug_ipaddr_print(to);
             printf(";%d;%d;%s", c->remote_port, c->local_port, data);
             printf("\n");
@@ -316,6 +319,8 @@ void print_mode() {
  */
 void init_module(int mode) {
     NETSTACK_MAC.off(1);
+    leds_init();
+
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
     set_callback(heterogeneous_forwarding_callback);
     device_mode = mode;
@@ -326,5 +331,6 @@ void init_module(int mode) {
 
     add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
     process_start(&serial_connection, NULL);
+    process_start(&blinker, NULL);
 }
 
