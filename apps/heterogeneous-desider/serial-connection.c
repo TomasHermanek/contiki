@@ -56,6 +56,16 @@ question_struct *find_question(int question_id, uip_ipaddr_t *to) {
 }
 
 /**
+ * Removes oldest question
+ */
+void clear_oldest_question() {
+    struct question_struct *s = list_head(question_list);
+
+    list_remove(question_list, s);
+    memb_free(&question_memb, s);
+}
+
+/**
  * Adds new question to question_list
  *
  * @param flow
@@ -66,9 +76,12 @@ question_struct *add_question(flow_struct *flow)  {
     struct question_struct *question;
 
     question = memb_alloc(&question_memb);
-    if (question==NULL) {
-        printf("Maximum question capacity exceeded\n");
+
+    while (question == NULL) {
+        clear_oldest_question();
+        question = memb_alloc(&question_memb);
     }
+
     question->question_id = question_id;
     question->flow = flow;
 
@@ -323,6 +336,12 @@ int handle_responses(char *data, int len) {
         }
         question_struct *question = find_question(num[1], NULL);
         if (question) {
+            if (!question->flow) {
+                list_remove(question_list, question);
+                memb_free(&question_memb, question);
+                printf("Question dropped because flow was removed");
+                return 1;
+            }
             if (num[2] == 1) {
                 question->flow->flags |= CNF;
             }

@@ -7,7 +7,7 @@
 #ifndef CONTIKI_SERIAL_CONNECTION_H
 #define CONTIKI_SERIAL_CONNECTION_H
 
-#define MAX_SIMULTANEOUS_QUESTIONS 5
+#define MAX_SIMULTANEOUS_QUESTIONS 3
 
 #include "heterogeneous-desider.h"
 
