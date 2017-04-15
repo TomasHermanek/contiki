@@ -32,6 +32,9 @@ MEMB(tech_memb, struct tech_struct, MAX_TECHNOLOGIES);
 LIST(metrics_list);
 MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
 
+LIST(flow_list);
+MEMB(flow_memb, struct flow_struct, MAX_FLOWS);
+
 simple_udp_callback receiver_callback;
 
 static struct simple_udp_connection *unicast_connection;    // Unicast connectin of parrent process
@@ -62,6 +65,28 @@ metrics_struct *find_metrics_by_tech(tech_struct *tech) {
             return s;
     }
     return NULL;
+}
+
+flow_struct *find_flow(const uip_ipaddr_t *to, int en, int bw, int etx) {
+    struct flow_struct *s;
+
+    for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
+        if (uip_ipaddr_cmp(to, &s->to) && en == s->energy && bw == s->bandwidth && etx == s->etx)
+            return s;
+    }
+    return NULL;
+}
+
+/**
+ * Removes all flows from database
+ */
+void clear_flows() {
+    struct flow_struct *s;
+
+    while(s = list_head(flow_list)) {
+        list_remove(flow_list, s);
+        memb_free(&flow_memb, s);
+    }
 }
 
 /**
@@ -103,6 +128,35 @@ void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int 
 }
 
 /**
+ * todo remove old flows
+ */
+flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw, int etx) {
+    struct flow_struct *flow;
+
+    flow = memb_alloc(&flow_memb);
+    if (flow==NULL) {
+        printf("Maximum flow capacity exceeded\n");     // remove old flows
+    }
+
+    list_add(flow_list, flow);
+
+    uip_ipaddr_copy(&flow->to, to);
+
+    flow->technology = tech;
+    flow->energy = en;
+    flow->bandwidth = bw;
+    flow->etx = etx;
+    flow->validity = 255;       // todo create constant
+
+    if (tech->type == WIFI_TECHNOLOGY)
+        flow->flags = PND;
+    else
+        flow->flags = 0;
+
+    return flow;
+}
+
+/**
  * Allows to print Technology Table
  */
 void print_tech_table() {
@@ -121,6 +175,20 @@ void print_metrics_table() {
 
     for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
         printf("Metrics tech:  %d %d %d\n", s->energy, s->bandwidth, s->etx);
+    }
+}
+
+/**
+ * Allows to print Flow Table
+ */
+void print_flow_table() {
+    struct flow_struct *s;
+
+    printf("Flow: -> to en/bw/etx - tech(1-wifi/2-rpl), valid(time), flags\n");
+    for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
+        printf("Flow: -> ");
+        uip_debug_ipaddr_print(&s->to);
+        printf(" %d/%d/%d - %d, %d, %d\n", s->energy, s->bandwidth, s->etx, s->technology->type, s->validity, s->flags);
     }
 }
 
@@ -215,23 +283,37 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
                                    uint16_t datalen,
                                    const uip_ipaddr_t *to)
 {
-    // first point check flow table
-    tech_struct *dst_technology;
-    dst_technology = select_technology(data);
 
-    if (dst_technology != NULL) {
-        if (dst_technology->type == RPL_TECHNOLOGY) {
-            printf("technology: RPL, %d\n", dst_technology->type);
+    int k_en, k_bw, k_etx;
+    fill_keys(data, &k_en, &k_bw, &k_etx);
+
+    flow_struct *flow;
+    flow = find_flow(to, k_en, k_bw, k_etx);
+
+    if (!flow) {
+        tech_struct *dst_technology;
+        dst_technology = select_technology(data);
+        flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
+    }
+
+    if (flow != NULL) {
+        if (flow->flags & PND) {    // need to ask for route (pending flag active)
+            int answer = 0;
+            PROCESS_CONTEXT_BEGIN(&serial_connection);
+            ask_for_route(flow);
+            PROCESS_CONTEXT_END();
+        }
+        if (flow->technology->type == RPL_TECHNOLOGY || (flow->flags & CNF == 0) ) {    //dst tech is wifi or not approved wifi
+            printf("technology: RPL, %d\n", flow->technology->type);
             leds_on(RPL_SEND_LED);
             return simple_udp_sendto(c, data, datalen, to);
-        }
-        else if (dst_technology->type == WIFI_TECHNOLOGY) {
-            printf("technology: WIFI, %d\n", dst_technology->type);
+        } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
+            printf("technology: WIFI, %d\n", flow->technology->type);
             printf("!p");
-            leds_on(WIFI_SEND_LED);
             uip_debug_ipaddr_print(to);
             printf(";%d;%d;%s", c->remote_port, c->local_port, data);
             printf("\n");
+            leds_on(WIFI_SEND_LED);
         }
     }
 
