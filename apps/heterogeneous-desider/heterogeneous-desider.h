@@ -11,7 +11,8 @@
 #define WIFI_TECHNOLOGY 1
 #define RPL_TECHNOLOGY 2
 
-#define MAX_TECHNOLOGIES 4
+#define MAX_TECHNOLOGIES 2
+#define MAX_FLOWS 5
 
 #define MODE_ROOT 1
 #define MODE_NODE 2
@@ -42,6 +43,29 @@ typedef struct metrics_struct {
     int bandwidth;
     int etx;
 } metrics_struct;
+
+
+/**
+ * flags structure -> |x|x|x|x|x|x|PND|CNF
+ * CNF -> if flow was confirmed by linux device (used by wifi technology)
+ * PND -> pending, if contiki waits for response to confirmation
+ */
+#define CNF 0x01
+#define PND 0x02
+
+/**
+ * Structure that represents flow
+ */
+typedef struct flow_struct {
+    struct flow_struct *next;
+    uip_ipaddr_t to;
+    int energy;
+    int bandwidth;
+    int etx;
+    int validity;
+    struct tech_struct *technology;
+    char flags;
+} flow_struct;
 
 /**
  * \brief       Module initialization

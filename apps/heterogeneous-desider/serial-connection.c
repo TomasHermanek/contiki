@@ -11,37 +11,86 @@
 #include "dev/serial-line.h"
 #include "net/ip/simple-udp.h"
 #include "net/ip/uip.h"
+#include "lib/memb.h"
+#include "lib/list.h"
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 
+static short question_id = 0;
+const short MAX_QUESTION_ID = 10;
+
+LIST(question_list);
+MEMB(question_memb, struct question_struct, MAX_SIMULTANEOUS_QUESTIONS);
+
 /**
+ * Generates new question_id, if it reaches limit, question_id starts again from 1
  *
- * @param data
- * @param i
- * @param start
- * @param len
  * @return
  */
-int parse_int_from_string(char *data, int *i, int start, int len) {
-    char string[10];
-    int j;
+int get_question_id() {
+    if (question_id > MAX_QUESTION_ID)
+        question_id = 1;
+    else
+        question_id++;
+    return question_id;
+}
 
-    for (j=start; j <= len; j++) {
-        if (!isdigit(data[j])) {
-            if (start < j) {
-                strncpy (string, data + (start*sizeof(char)), (j - start));
-                string[j-start] = '\0';
-                *i = j-1;
-                return strtol(string, &string, 10);;
-            }
-            else {
-                return 0;
-            }
-        }
+/**
+ * Function finds question in question_list using two individual filters
+ *
+ * @param question_id
+ * @param to
+ * @return
+ */
+question_struct *find_question(int question_id, uip_ipaddr_t *to) {
+    struct question_struct *s;
+
+    for(s = list_head(question_list); s != NULL; s = list_item_next(s)) {
+        if (uip_ipaddr_cmp(to, &s->flow->to) || question_id == s->question_id)
+            return s;
     }
-    return 0;
+    return NULL;
+}
+
+/**
+ * Adds new question to question_list
+ *
+ * @param flow
+ * @return
+ */
+question_struct *add_question(flow_struct *flow)  {
+    short question_id = get_question_id();
+    struct question_struct *question;
+
+    question = memb_alloc(&question_memb);
+    if (question==NULL) {
+        printf("Maximum question capacity exceeded\n");
+    }
+    question->question_id = question_id;
+    question->flow = flow;
+
+    list_add(question_list, question);
+    return question;
+}
+
+/**
+ * Function will ask for route validity through serial line (if target route is available using WiFi tech)
+ *
+ * @param flow
+ */
+void ask_for_route(flow_struct *flow){
+    question_struct *question = find_question(-1, &flow->to);
+
+    if (!question)
+        question = add_question(flow);
+
+    printf("?p;%d;", question->question_id);
+    uip_debug_ipaddr_print(&flow->to);
+    printf("\n");
+    return 1;
 }
 
 /**
@@ -130,6 +179,35 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
 }
 
 /**
+ * Allows to copy first digit int part and transforms it to int
+ *
+ * @param data
+ * @param i
+ * @param start
+ * @param len
+ * @return
+ */
+int parse_int_from_string(char *data, int *i, int start, int len) {
+    char string[10];
+    int j;
+
+    for (j=start; j <= len; j++) {
+        if (!isdigit(data[j])) {
+            if (start < j) {
+                strncpy (string, data + (start*sizeof(char)), (j - start));
+                string[j-start] = '\0';
+                *i = j-1;
+                return strtol(string, &string, 10);;
+            }
+            else {
+                return 0;
+            }
+        }
+    }
+    return 0;
+}
+
+/**
  *
  * @param data
  * @param len
@@ -152,6 +230,7 @@ int handle_commands(char *data, int len) {
             }
         }
         add_metrics(wifi_tech, en, bw, etx);
+        clear_flows();
         return 1;
     }
     else if (data[1] == 'p') {
@@ -181,27 +260,90 @@ int handle_commands(char *data, int len) {
     return 0;
 }
 
+/**
+ * Function handles requests to print data
+ * m -> prints metrics table
+ * f -> prints flow table
+ *
+ * @param data
+ * @param len
+ * @return
+ */
 int handle_prints(char *data, int len) {
     if (data[1] == 'm') {
         print_metrics_table();
+        return 1;
+    } else if (data[1] == 'f') {
+        print_flow_table();
         return 1;
     }
     return 0;
 }
 
+/**
+ * Function handles incoming requests to contiki device
+ * c -> request for configuration details
+ * n -> request for neighbour table (used by root)
+ *
+ * @param data
+ * @param len
+ * @return
+ */
 int handle_requests(char *data, int len) {
     if (data[1] == 'c') {
         print_src_ip();
         print_mode();
         return 1;
     }
-    if (data[1] == 'n') {
+    else if (data[1] == 'n') {
         print_neighbours();
         return 1;
     }
     return 0;
 }
 
+/**
+ * Function handles incoming responses to requests
+ * p -> response for "ask_for_route" request
+ *
+ * @param data
+ * @param len
+ * @return
+ */
+int handle_responses(char *data, int len) {
+    if (data[1] == 'p') {
+        char *end_str, *token = strtok_r(data, ";", &end_str);
+        int i = 0, num[3];
+
+        while (token != NULL) {
+            int number = (int)strtol(token, NULL, 10);
+            token = strtok_r(NULL, ";", &end_str);
+            num[i] = number;
+            i++;
+        }
+        question_struct *question = find_question(num[1], NULL);
+        if (question) {
+            if (num[2] == 1) {
+                question->flow->flags |= CNF;
+            }
+            else {
+                question->flow->flags &= ~CNF;
+            }
+            question->flow->flags &= ~PND;
+            list_remove(question_list, question);
+            memb_free(&question_memb, question);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Function handles input data and multiplexes them into separate functions differs them using symbols !#?$
+ *
+ * @param data
+ * @return
+ */
 int handle_input(char *data) {
     int len = strlen(data);
 
@@ -214,21 +356,25 @@ int handle_input(char *data) {
     else if (data[0] == '?') {
         return handle_requests(data, len);
     }
+    else if (data[0] == '$') {
+        return handle_responses(data, len);
+    }
     return 0;
 }
 
+/**
+ * Process which waits for serial line input
+ */
 
 PROCESS(serial_connection, "Heterogenous serial handler");
 
 PROCESS_THREAD(serial_connection, ev, data)
 {
     PROCESS_BEGIN();
-    printf("serial connection started\n");
 
     for(;;) {
         PROCESS_YIELD();
         if(ev == serial_line_event_message) {
-            //printf("received line: %s\n", (char *)data);
             handle_input((char *)data);
         }
     }
