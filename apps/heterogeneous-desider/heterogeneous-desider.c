@@ -321,10 +321,10 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
             ask_for_route(flow);
             PROCESS_CONTEXT_END();
         }
-        if (flow->technology->type == RPL_TECHNOLOGY || (flow->flags & CNF == 0) ) {    //dst tech is wifi or not approved wifi
+        if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
             printf("technology: RPL, %d\n", flow->technology->type);
             leds_on(RPL_SEND_LED);
-            return simple_udp_sendto(c, data, datalen, to);
+            simple_udp_sendto(c, data, datalen, to);
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
             printf("technology: WIFI, %d\n", flow->technology->type);
             printf("!p");
