@@ -243,7 +243,6 @@ void fill_keys(const void *data, int *en, int *bw, int *etx) {
         *bw = 1;
         *etx = 1;
     }
-    count++;
 }
 
 /**
