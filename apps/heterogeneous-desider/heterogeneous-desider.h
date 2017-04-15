@@ -44,6 +44,7 @@ typedef struct metrics_struct {
     int etx;
 } metrics_struct;
 
+#define FLOW_VALIDITY 255
 
 /**
  * flags structure -> |x|x|x|x|x|x|PND|CNF

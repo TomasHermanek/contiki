@@ -90,6 +90,22 @@ void clear_flows() {
 }
 
 /**
+ * Removes oldest flow
+ */
+void clear_oldest_flow() {
+    struct flow_struct *s, *oldest_flow = list_head(flow_list);
+
+    s = list_item_next(s);
+    for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
+        if (s->validity < oldest_flow->validity)
+            oldest_flow = s;
+    }
+
+    list_remove(flow_list, oldest_flow);
+    memb_free(&flow_memb, oldest_flow);
+}
+
+/**
  * Function allows to add technology into technology table
  * @param type
  */
@@ -134,8 +150,10 @@ flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw,
     struct flow_struct *flow;
 
     flow = memb_alloc(&flow_memb);
-    if (flow==NULL) {
-        printf("Maximum flow capacity exceeded\n");     // remove old flows
+
+    while (flow == NULL) {
+        clear_oldest_flow();
+        flow = memb_alloc(&flow_memb);
     }
 
     list_add(flow_list, flow);
@@ -146,7 +164,7 @@ flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw,
     flow->energy = en;
     flow->bandwidth = bw;
     flow->etx = etx;
-    flow->validity = 255;       // todo create constant
+    flow->validity = FLOW_VALIDITY;
 
     if (tech->type == WIFI_TECHNOLOGY)
         flow->flags = PND;
@@ -225,6 +243,7 @@ void fill_keys(const void *data, int *en, int *bw, int *etx) {
         *bw = 1;
         *etx = 1;
     }
+    count++;
 }
 
 /**
