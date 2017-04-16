@@ -132,8 +132,7 @@ PROCESS_THREAD(unicast_receiver_process, ev, data)
 
   servreg_hack_register(SERVICE_ID, ipaddr);
 
-  simple_udp_register(&unicast_connection, UDP_PORT,
-                      NULL, UDP_PORT, receiver);
+  heterogenous_udp_register(&unicast_connection, UDP_PORT, NULL, UDP_PORT, receiver);
 
   init_module(MODE_NODE);
 
