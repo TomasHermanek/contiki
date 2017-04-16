@@ -144,7 +144,10 @@ void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int 
 }
 
 /**
- * todo remove old flows
+ * Adds flow to flow_list, stores metrics, validation time and destination address. If target tech is wifi and node-mode
+ * is ROOT, device needs to ask using serial line, if destination device is available using WIFI technology. This is done
+ * by set up PND flag to true. If target tech is WIFI and mode is casual node, wifi always sends data to ROOT device,
+ * which should be always accessible. Thus, flag is set up to CNF.
  */
 flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw, int etx) {
     struct flow_struct *flow;
@@ -167,7 +170,10 @@ flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw,
     flow->validity = FLOW_VALIDITY;
 
     if (tech->type == WIFI_TECHNOLOGY)
-        flow->flags = PND;
+        if (device_mode == MODE_ROOT)
+            flow->flags = PND;
+        else
+            flow->flags == CNF;
     else
         flow->flags = 0;
 
