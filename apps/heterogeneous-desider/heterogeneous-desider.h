@@ -20,11 +20,11 @@
 #define MODE_NODE 2
 
 #define RPL_SEND_LED 1
-#define WIFI_SEND_LED 2
-#define RPL_FORWARD_LED 3
-#define WIFI_FORWARD_LED 4
+#define WIFI_SEND_LED 3
+#define RPL_FORWARD_LED 4
+#define WIFI_FORWARD_LED 2
 #define RPL_RECEIVE_LED 1
-#define WIFI_RECEIVE_LED 2
+#define WIFI_RECEIVE_LED 3
 
 /**
  * Structure defines technology unit

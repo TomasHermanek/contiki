@@ -111,19 +111,18 @@ void ask_for_route(flow_struct *flow){
  * @param ip_string
  * @return
  */
-uip_ipaddr_t *string_ipv6_to_uip_ipaddr(char *ip_string) {
-    static uip_ipaddr_t ipv6;
+uip_ipaddr_t *string_ipv6_to_uip_ipaddr(char *ip_string, uip_ipaddr_t *ipv6) {
     char *end_str, *token = strtok_r(ip_string, ":", &end_str);
     int ip[8], i = 0;
 
     while (token != NULL) {
         int number = (int)strtol(token, NULL, 16);
-        token = strtok_r(NULL, ";", &end_str);
+        token = strtok_r(NULL, ":", &end_str);
         ip[i] = number;
         i++;
     }
-    uip_ip6addr(&ipv6, ip[0], ip[1], ip[2], ip[3], ip[4], ip[5], ip[6], ip[7]);
-    return &ipv6;
+    uip_ip6addr(ipv6, ip[0], ip[1], ip[2], ip[3], ip[4], ip[5], ip[6], ip[7]);
+    return ipv6;
 }
 
 /**
@@ -134,25 +133,19 @@ uip_ipaddr_t *string_ipv6_to_uip_ipaddr(char *ip_string) {
  * @return
  */
 int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport, struct simple_udp_connection *c,
-                            char *payload, int payload_len, const uip_ipaddr_t *sender_ip, const uip_ipaddr_t *receiver_ip) {
+                            char *payload, int *payload_len, uip_ipaddr_t *sender_ip, uip_ipaddr_t *receiver_ip) {
     int i = 0;
-    printf("data %s\n", data);
     char *end_str, *token = strtok_r(data, ";", &end_str);
 
     while (token != NULL)  {
-//        printf("address %d\n", token);
-        printf("token %s\n", token);
-//        printf("data %s\n", data);
-//        printf("index %d\n", i);
-//        printf("%d\n");
         switch (i) {
             case 0:
                 break;
             case 1:
-                sender_ip = string_ipv6_to_uip_ipaddr(token);
+                string_ipv6_to_uip_ipaddr(token, sender_ip);
                 break;
             case 2:
-                receiver_ip = string_ipv6_to_uip_ipaddr(token);
+                string_ipv6_to_uip_ipaddr(token, receiver_ip);
                 break;
             case 3:
                 *sport = strtol(token, &token, 10);
@@ -161,6 +154,8 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
                 *dport = strtol(token, &token, 10);
                 break;
             case 5:
+                strcpy(payload, token);
+                *payload_len = strlen(token) + 1;
                 break;
             case 6:
                 break;
@@ -169,23 +164,15 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
         i++;
     }
 
-    printf("1 ");
-    uip_debug_ipaddr_print(&sender_ip);
-    printf("\n");
-
     for(uip_udp_conn = &uip_udp_conns[0]; uip_udp_conn < &uip_udp_conns[UIP_UDP_CONNS]; ++uip_udp_conn) {
-        printf("connection no %d lport: %d rport: %d\n", uip_udp_conn, uip_udp_conn->lport, uip_udp_conn->rport);
         if(uip_udp_conn->lport != 0 &&
            UIP_HTONS(*dport) == uip_udp_conn->lport &&
            (uip_udp_conn->rport == 0 || UIP_HTONS(*sport) == uip_udp_conn->rport)) {
 //           (uip_is_addr_unspecified(&uip_udp_conn->ripaddr) || uip_ipaddr_cmp(&UIP_IP_BUF->srcipaddr, &uip_udp_conn->ripaddr))) {
-            printf("connection found");
+//            printf("connection found");
             c=uip_udp_conn;
            // sender_ip = &uip_udp_conn->sipaddr;
 //            sender_ip = &uip_udp_conn->ripaddr;
-//            printf("printing IP: ");
-//            uip_debug_ipaddr_print(&uip_udp_conn->ripaddr);
-//            printf("\n");
         }
     }
     return 0;
@@ -247,28 +234,14 @@ int handle_commands(char *data, int len) {
         return 1;
     }
     else if (data[1] == 'p') {
-        printf("Incoming packet from serial\n");
         uint16_t sport, dport;
-        char *payload = NULL;
+        static char payload[150];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
         int payload_len = 0;
-        const uip_ipaddr_t *sender_ip = NULL, *receiver_ip=NULL;
+        static uip_ipaddr_t sender_ip, receiver_ip;
         struct simple_udp_connection *c = NULL;
 
-        parse_incoming_packet(data, len, &sport, &dport, c, payload, payload_len, sender_ip, receiver_ip);
-        printf("2 ");
-        uip_debug_ipaddr_print(&sender_ip);
-        printf("\n");
-        heterogenous_udp_callback(c, sender_ip, sport, receiver_ip, dport, payload, payload_len);
-
-//        PROCESS_CONTEXT_BEGIN(c->client_process);
-//        c->receive_callback(c,
-//                            &(UIP_IP_BUF->srcipaddr),
-//                            UIP_HTONS(UIP_IP_BUF->srcport),
-//                            &(UIP_IP_BUF->destipaddr),
-//                            UIP_HTONS(UIP_IP_BUF->destport),
-//                            databuffer, uip_datalen());
-//        PROCESS_CONTEXT_END();
-
+        parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip);
+        heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
     }
     return 0;
 }
