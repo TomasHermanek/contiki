@@ -283,14 +283,14 @@ int handle_commands(char *data, int len) {
  * @return
  */
 int handle_prints(char *data, int len) {
+    printf(PRINT_START_SYMBOL);
     if (data[1] == 'm') {
         print_metrics_table();
-        return 1;
     } else if (data[1] == 'f') {
         print_flow_table();
-        return 1;
     }
-    return 0;
+    printf(PRINT_END_SYMBOL);
+    return 1;
 }
 
 /**

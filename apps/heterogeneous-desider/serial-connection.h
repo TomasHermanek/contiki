@@ -9,6 +9,9 @@
 
 #define MAX_SIMULTANEOUS_QUESTIONS 3
 
+static char const* PRINT_START_SYMBOL = "<-\n";
+static char const* PRINT_END_SYMBOL  = "->\n";
+
 #include "heterogeneous-desider.h"
 
 typedef struct question_struct {
