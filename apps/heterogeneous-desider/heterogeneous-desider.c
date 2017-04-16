@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static uint8_t databuffer[UIP_BUFSIZE];
 #define UIP_IP_BUF   ((struct uip_udpip_hdr *)&uip_buf[UIP_LLH_LEN])
 
 LIST(tech_list);
@@ -38,6 +37,7 @@ MEMB(flow_memb, struct flow_struct, MAX_FLOWS);
 simple_udp_callback receiver_callback;
 
 static struct simple_udp_connection *unicast_connection;    // Unicast connectin of parrent process
+static uip_ipaddr_t src_ip;
 static int device_mode;
 
 /**
@@ -295,6 +295,29 @@ tech_struct *select_technology(const void *data) {
     return selected_technology;
 }
 
+flow_struct *get_flow(const uip_ipaddr_t *to, const void *data, uint16_t datalen) {
+    int k_en, k_bw, k_etx;
+    fill_keys(data, &k_en, &k_bw, &k_etx);
+
+    flow_struct *flow;
+    flow = find_flow(to, k_en, k_bw, k_etx);
+
+    if (!flow) {
+        tech_struct *dst_technology;
+        dst_technology = select_technology(data);
+        flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
+    }
+}
+
+void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, int remote_port, int src_port, const void *data) {
+    printf("!p;");
+    uip_debug_ipaddr_print(from);
+    printf(";");
+    uip_debug_ipaddr_print(to);
+    printf(";%d;%d;%s", remote_port, src_port, data);
+    printf("\n");
+}
+
 /**
  * @param c
  * @param data
@@ -307,40 +330,53 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
                                    uint16_t datalen,
                                    const uip_ipaddr_t *to)
 {
-
-    int k_en, k_bw, k_etx;
-    fill_keys(data, &k_en, &k_bw, &k_etx);
-
-    flow_struct *flow;
-    flow = find_flow(to, k_en, k_bw, k_etx);
-
-    if (!flow) {
-        tech_struct *dst_technology;
-        dst_technology = select_technology(data);
-        flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
-    }
+    flow_struct *flow = get_flow(to, data, datalen);
 
     if (flow != NULL) {
         if (flow->flags & PND) {    // need to ask for route (pending flag active)
-            int answer = 0;
             PROCESS_CONTEXT_BEGIN(&serial_connection);
             ask_for_route(flow);
             PROCESS_CONTEXT_END();
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
-            printf("technology: RPL, %d\n", flow->technology->type);
-            leds_on(RPL_SEND_LED);
+//            printf("technology: RPL, %d\n", flow->technology->type);
             simple_udp_sendto(c, data, datalen, to);
+            leds_on(RPL_SEND_LED);
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
-            printf("technology: WIFI, %d\n", flow->technology->type);
-            printf("!p");
-            uip_debug_ipaddr_print(to);
-            printf(";%d;%d;%s", c->remote_port, c->local_port, data);
-            printf("\n");
+            send_packet_wifi(&src_ip, to, c->remote_port, c->local_port, data);
             leds_on(WIFI_SEND_LED);
         }
     }
 
+}
+
+int heterogeneous_forwarding_callback() {
+    flow_struct *flow = get_flow(&(UIP_IP_BUF->destipaddr), uip_appdata-4, uip_datalen());
+
+    if (flow != NULL) {
+        if (flow->flags & PND) {    // need to ask for route (pending flag active)
+            PROCESS_CONTEXT_BEGIN(&serial_connection);
+            ask_for_route(flow);
+            PROCESS_CONTEXT_END();
+        }
+        if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
+//            printf("technology: RPL, %d\n", flow->technology->type);
+            leds_on(RPL_FORWARD_LED);
+            return 1;
+        } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
+            send_packet_wifi(&(UIP_IP_BUF->srcipaddr), &(UIP_IP_BUF->destipaddr), UIP_HTONS(UIP_IP_BUF->destport),
+                             UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4);
+//            printf("packet to send from: ");
+//            uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
+//            printf(" to: ");
+//            uip_debug_ipaddr_print(&(UIP_IP_BUF->destipaddr));
+//            printf(" srcPort: %d dstPort: %d data: %s length: %d \n",
+//                   UIP_HTONS(UIP_IP_BUF->srcport), UIP_HTONS(UIP_IP_BUF->destport), uip_appdata-4, uip_datalen());
+            leds_on(WIFI_FORWARD_LED);
+            return 0;
+        }
+    }
+    return 1;
 }
 
 
@@ -368,21 +404,18 @@ int heterogenous_udp_register(struct simple_udp_connection *c, uint16_t local_po
     simple_udp_register(c, local_port, remote_addr, remote_port, receive_callback);
 }
 
-int heterogeneous_forwarding_callback() {
-
-    //memcpy(databuffer, uip_appdata, uip_datalen());
-
-    printf("hello from the callback side\n");
-    printf("packet to send from: ");
-    uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
-    printf(" to: ");
-    uip_debug_ipaddr_print(&(UIP_IP_BUF->destipaddr));
-    printf(" srcPort: %d dstPort: %d data: %s length: %d \n",
-           UIP_HTONS(UIP_IP_BUF->srcport), UIP_HTONS(UIP_IP_BUF->destport), uip_appdata-4, uip_datalen());
-}
-
-void
-heterogenous_udp_callback(struct simple_udp_connection *c,
+/**
+ * This function calls main process callback function with data, parsed from serial line
+ *
+ * @param c
+ * @param sender_addr
+ * @param sender_port
+ * @param receiver_addr
+ * @param receiver_port
+ * @param data
+ * @param datalen
+ */
+void heterogenous_udp_callback(struct simple_udp_connection *c,
          const uip_ipaddr_t *sender_addr,
          uint16_t sender_port,
          const uip_ipaddr_t *receiver_addr,
@@ -390,13 +423,14 @@ heterogenous_udp_callback(struct simple_udp_connection *c,
          const uint8_t *data,
          uint16_t datalen)
 {
-    printf("3 ");
-    uip_debug_ipaddr_print(&sender_addr);
-    printf("\n");
-    receiver_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
+    leds_on(WIFI_RECEIVE_LED);
+    if (receiver_callback)
+        receiver_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
 }
 
-
+/**
+ * Prints mote IPv6 address database in format !p;<addr1>;<addr2>; ...
+ */
 void print_src_ip() {
     printf("!r");
     int i;
@@ -412,6 +446,9 @@ void print_src_ip() {
     printf("\n");
 }
 
+/**
+ * Prints mote mode in format !c<mode>
+ */
 void print_mode() {
     printf("!c%d\n", device_mode);
 }
@@ -419,10 +456,11 @@ void print_mode() {
 /**
  * Initialize module
  */
-void init_module(int mode) {
+void init_module(int mode, const uip_ipaddr_t *ip) {
     NETSTACK_MAC.off(1);
     leds_init();
 
+    uip_ipaddr_copy(&src_ip, ip);
     tech_struct *rpl_tech = add_technology(RPL_TECHNOLOGY);
     set_callback(heterogeneous_forwarding_callback);
     device_mode = mode;
