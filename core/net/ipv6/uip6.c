@@ -1253,7 +1253,6 @@ uip_process(uint8_t flag)
 
       UIP_IP_BUF->ttl = UIP_IP_BUF->ttl - 1;
 
-      PRINTF("Forwarding packet to ");
         // todo debug src and dst UDP port
 //      printf("forwarding\n");
 //
@@ -1275,13 +1274,20 @@ uip_process(uint8_t flag)
 //      }
 //      printf("\n");
 
-      if (desider_callback)
-        desider_callback();
+      if (desider_callback) {
+        if (desider_callback()) {
+          PRINTF("Forwarding packet to ");
+          PRINT6ADDR(&UIP_IP_BUF->destipaddr);
+          PRINTF("\n");
+          UIP_STAT(++uip_stat.ip.forwarded);
+          goto send;
+        }
+        else {
+          goto drop;
+        }
+      }
 
-      PRINT6ADDR(&UIP_IP_BUF->destipaddr);
-      PRINTF("\n");
-      UIP_STAT(++uip_stat.ip.forwarded);
-      goto send;
+
     } else {
       if((uip_is_addr_linklocal(&UIP_IP_BUF->srcipaddr)) &&
          (!uip_is_addr_unspecified(&UIP_IP_BUF->srcipaddr)) &&
