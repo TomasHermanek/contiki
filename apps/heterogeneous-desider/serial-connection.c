@@ -22,6 +22,12 @@
 static short question_id = 0;
 const short MAX_QUESTION_ID = 10;
 
+static char payload[150];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
+uint16_t sport, dport;
+static int payload_len;
+static uip_ipaddr_t sender_ip, receiver_ip;
+struct simple_udp_connection *c = NULL;
+
 LIST(question_list);
 MEMB(question_memb, struct question_struct, MAX_SIMULTANEOUS_QUESTIONS);
 
@@ -133,13 +139,14 @@ uip_ipaddr_t *string_ipv6_to_uip_ipaddr(char *ip_string, uip_ipaddr_t *ipv6) {
  * @return
  */
 int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport, struct simple_udp_connection *c,
-                            char *payload, int *payload_len, uip_ipaddr_t *sender_ip, uip_ipaddr_t *receiver_ip) {
-    int i = 0;
+                            char *payload, int *payload_len, uip_ipaddr_t *sender_ip, uip_ipaddr_t *receiver_ip, int i) {
     char *end_str, *token = strtok_r(data, ";", &end_str);
+    int meta;
 
     while (token != NULL)  {
         switch (i) {
             case 0:
+                meta =  strtol(token, &token, 10);
                 break;
             case 1:
                 string_ipv6_to_uip_ipaddr(token, sender_ip);
@@ -175,7 +182,7 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
 //            sender_ip = &uip_udp_conn->ripaddr;
         }
     }
-    return 0;
+    return meta;
 }
 
 /**
@@ -234,13 +241,7 @@ int handle_commands(char *data, int len) {
         return 1;
     }
     else if (data[1] == 'p') {
-        uint16_t sport, dport;
-        static char payload[150];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
-        int payload_len = 0;
-        static uip_ipaddr_t sender_ip, receiver_ip;
-        struct simple_udp_connection *c = NULL;
-
-        parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip);
+        parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
         heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
     }
     return 0;
@@ -283,6 +284,22 @@ int handle_requests(char *data, int len) {
     }
     else if (data[1] == 'n') {
         print_neighbours();
+        return 1;
+    }
+    else if (data[1] == 'p') {
+        int question_id;
+
+        question_id = parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, -1);
+
+        flow_struct *flow = get_flow(&receiver_ip, &payload, payload_len);
+        // todo setup flags
+        if (flow->technology->type == RPL_TECHNOLOGY) {
+            simple_udp_sendto(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
+            leds_on(RPL_FORWARD_LED);
+            printf("$p;%d;0", question_id);
+        }
+        else
+            printf("$p;%d;1", question_id);
         return 1;
     }
     return 0;
