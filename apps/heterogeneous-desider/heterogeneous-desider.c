@@ -173,7 +173,7 @@ flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw,
         if (device_mode == MODE_ROOT)
             flow->flags = PND;
         else
-            flow->flags == CNF;
+            flow->flags = CNF;
     else
         flow->flags = 0;
 
@@ -359,7 +359,7 @@ int heterogeneous_forwarding_callback() {
             ask_for_route(flow);
             PROCESS_CONTEXT_END();
         }
-        if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
+        if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi  # todo make sure that tech rpl exists!
 //            printf("technology: RPL, %d\n", flow->technology->type);
             leds_on(RPL_FORWARD_LED);
             return 1;
@@ -469,7 +469,7 @@ void init_module(int mode, const uip_ipaddr_t *ip) {
     print_src_ip();
     print_neighbours();
 
-    add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
+    //add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
     process_start(&serial_connection, NULL);
     process_start(&blinker, NULL);
 }
