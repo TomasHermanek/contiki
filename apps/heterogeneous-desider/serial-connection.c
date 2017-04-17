@@ -298,8 +298,10 @@ int handle_requests(char *data, int len) {
             leds_on(RPL_FORWARD_LED);
             printf("$p;%d;0", question_id);
         }
-        else
+        else {
+            leds_on(WIFI_FORWARD_LED);
             printf("$p;%d;1", question_id);
+        }
         return 1;
     }
     return 0;
