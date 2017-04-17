@@ -473,7 +473,7 @@ void init_module(int mode, const uip_ipaddr_t *ip) {
     print_src_ip();
     print_neighbours();
 
-    //add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
+    add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
     process_start(&serial_connection, NULL);
     process_start(&blinker, NULL);
 }
