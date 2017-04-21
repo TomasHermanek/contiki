@@ -294,7 +294,8 @@ int handle_requests(char *data, int len) {
         flow_struct *flow = get_flow(&receiver_ip, &payload, payload_len);
         // todo setup flags
         if (flow->technology->type == RPL_TECHNOLOGY) {
-            simple_udp_sendto(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
+            //(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
+            uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
             leds_on(RPL_FORWARD_LED);
             printf("$p;%d;0", question_id);
         }
