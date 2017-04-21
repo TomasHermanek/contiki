@@ -17,12 +17,16 @@
 #define MODE_ROOT 1
 #define MODE_NODE 2
 
-#define RPL_SEND_LED 1
-#define WIFI_SEND_LED 3
-#define RPL_FORWARD_LED 4
-#define WIFI_FORWARD_LED 2
-#define RPL_RECEIVE_LED 1
-#define WIFI_RECEIVE_LED 3
+/**
+ * RED 0x01,GREEN 0x02,YELLOW 0x03,BLUE 0x04,PURPLE 0x05,AQUA 0x06,WHITE 0x07
+ */
+
+#define RPL_SEND_LED 0x04
+#define WIFI_SEND_LED 0x02
+#define RPL_FORWARD_LED 0x06
+#define WIFI_FORWARD_LED 0x03
+#define RPL_RECEIVE_LED 0x05
+#define WIFI_RECEIVE_LED 0x01
 
 /**
  * Structure defines technology unit
