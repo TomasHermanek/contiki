@@ -46,6 +46,50 @@ extern uint16_t uip_slen;
 
 #include <string.h>
 
+#define UIP_IP_BUF                          ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
+#define UIP_UDP_BUF                        ((struct uip_udp_hdr *)&uip_buf[UIP_LLH_LEN + UIP_IPH_LEN])
+
+/*---------------------------------------------------------------------------*/
+void
+uip_udp_packet_forward(uip_ipaddr_t from, uip_ipaddr_t to, int remote_port, int src_port, const void *data, int len) {
+#if UIP_UDP
+    if(data != NULL && len <= (UIP_BUFSIZE - (UIP_LLH_LEN + UIP_IPUDPH_LEN))) {
+
+        //uip_udp_conn->ripaddr = to;
+
+        uip_slen = len;
+        memmove(&uip_buf[UIP_LLH_LEN + UIP_IPUDPH_LEN], data, len);
+
+        uip_process(UIP_UDP_SEND_CONN);
+
+        UIP_IP_BUF->len[0] = ((uip_len - UIP_IPH_LEN) >> 8);
+        UIP_IP_BUF->len[1] = ((uip_len - UIP_IPH_LEN) & 0xff);
+
+        UIP_IP_BUF->ttl = 10;       // todo check correct setup
+        UIP_IP_BUF->proto = UIP_PROTO_UDP;
+
+        UIP_UDP_BUF->udplen = UIP_HTONS(uip_slen + UIP_UDPH_LEN);
+        UIP_UDP_BUF->udpchksum = 0;
+
+        UIP_UDP_BUF->srcport  = UIP_HTONS(src_port);
+        UIP_UDP_BUF->destport = UIP_HTONS(remote_port);
+
+        uip_ipaddr_copy(&UIP_IP_BUF->destipaddr, &to);
+        uip_ipaddr_copy(&UIP_IP_BUF->srcipaddr, &from);
+//        uip_ds6_select_src(&UIP_IP_BUF->srcipaddr, &UIP_IP_BUF->destipaddr);
+
+        uip_appdata = &uip_buf[UIP_LLH_LEN + UIP_IPTCPH_LEN];
+    }
+#if NETSTACK_CONF_WITH_IPV6
+    tcpip_ipv6_output();
+#else
+    if(uip_len > 0) {
+      tcpip_output();
+    }
+#endif
+    uip_slen = 0;
+#endif /* UIP_UDP */
+}
 /*---------------------------------------------------------------------------*/
 void
 uip_udp_packet_send(struct uip_udp_conn *c, const void *data, int len)
