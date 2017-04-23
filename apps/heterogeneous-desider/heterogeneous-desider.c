@@ -40,6 +40,9 @@ static struct simple_udp_connection *unicast_connection;    // Unicast connectin
 static uip_ipaddr_t src_ip;
 static int device_mode;
 
+static short flow_id = 0;
+const short MAX_FLOW_ID = 10;
+
 /**
  * Allows to find technology by type, this function is useful when duplicates are finding
  *
@@ -56,7 +59,12 @@ tech_struct *find_tech_by_type(int type) {
     return NULL;
 }
 
-
+/**
+ * Allows to find metrics by technology
+ *
+ * @param tech
+ * @return
+ */
 metrics_struct *find_metrics_by_tech(tech_struct *tech) {
     struct metrics_struct *s;
 
@@ -67,6 +75,15 @@ metrics_struct *find_metrics_by_tech(tech_struct *tech) {
     return NULL;
 }
 
+/**
+ * Allows to find flow by dst IPv6 address and metric keys
+ *
+ * @param to
+ * @param en
+ * @param bw
+ * @param etx
+ * @return
+ */
 flow_struct *find_flow(const uip_ipaddr_t *to, int en, int bw, int etx) {
     struct flow_struct *s;
 
@@ -75,6 +92,34 @@ flow_struct *find_flow(const uip_ipaddr_t *to, int en, int bw, int etx) {
             return s;
     }
     return NULL;
+}
+
+/**
+ *
+ * @param id
+ * @return
+ */
+flow_struct *find_flow_by_id(int id) {
+    struct flow_struct *s;
+
+    for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
+        if (id == s->flow_id)
+            return s;
+    }
+    return NULL;
+}
+
+/**
+ * Generates new flow_id, if it reaches limit, flow_id starts again from 1
+ *
+ * @return
+ */
+int get_flow_id() {
+    if (flow_id > MAX_FLOW_ID)
+        flow_id = 1;
+    else
+        flow_id++;
+    return flow_id;
 }
 
 /**
@@ -107,10 +152,11 @@ void clear_oldest_flow() {
 
 /**
  * Function allows to add technology into technology table
+ *
  * @param type
  */
 tech_struct *add_technology(int type)  {
-    struct tech_struct *tech = find_tech_by_type(type);            // todo ensure that tech in table is unique
+    struct tech_struct *tech = find_tech_by_type(type);
 
     if (tech == NULL) {
         tech = memb_alloc(&tech_memb);
@@ -163,6 +209,7 @@ flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw,
 
     uip_ipaddr_copy(&flow->to, to);
 
+    flow->flow_id = get_flow_id();
     flow->technology = tech;
     flow->energy = en;
     flow->bandwidth = bw;
@@ -208,8 +255,9 @@ void print_metrics_table() {
 void print_flow_table() {
     struct flow_struct *s;
 
-    printf("Flow: -> to en/bw/etx - tech(1-wifi/2-rpl), valid(time), flags\n");
+    printf("ID: <id> Flow: -> <to> en/bw/etx - tech(1-wifi/2-rpl), valid(time), flags\n");
     for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
+        printf("ID: %d ", s->flow_id);
         printf("Flow: -> ");
         uip_debug_ipaddr_print(&s->to);
         printf(" %d/%d/%d - %d, %d, %d\n", s->energy, s->bandwidth, s->etx, s->technology->type, s->validity, s->flags);
@@ -270,16 +318,14 @@ int calculate_m(struct metrics_struct *ms, int k_en, int k_bw, int k_etx) {
  * @param data
  * @return
  */
-tech_struct *select_technology(const void *data) {
-    int k_en, k_bw, k_etx, m_res = -1;
+tech_struct *select_technology(const void *data,int k_en,int k_bw,int k_etx) {
+    int m_res = -1;
     tech_struct *selected_technology = NULL;
     struct metrics_struct *s;
 
     fill_keys(data, &k_en, &k_bw, &k_etx);
-    //printf("Kyes %d %d %d\n", k_en, k_bw, k_etx);
 
     for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
-        //printf("Metrics tech:  %d %d %d\n", s->energy, s->bandwidth, s->etx);
         if (m_res == -1) {
             selected_technology = s->technology;
             m_res = calculate_m(s, k_en, k_bw, k_etx);
@@ -295,6 +341,14 @@ tech_struct *select_technology(const void *data) {
     return selected_technology;
 }
 
+/**
+ * Finds flow in flow table or create new one
+ *
+ * @param to
+ * @param data
+ * @param datalen
+ * @return
+ */
 flow_struct *get_flow(const uip_ipaddr_t *to, const void *data, uint16_t datalen) {
     int k_en, k_bw, k_etx;
     fill_keys(data, &k_en, &k_bw, &k_etx);
@@ -304,11 +358,32 @@ flow_struct *get_flow(const uip_ipaddr_t *to, const void *data, uint16_t datalen
 
     if (!flow) {
         tech_struct *dst_technology;
-        dst_technology = select_technology(data);
+        dst_technology = select_technology(data, k_en, k_bw, k_etx);
         flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
     }
 }
 
+/**
+ * Function will ask for route validity through serial line (if target route is available using WiFi tech)
+ *
+ * @param flow
+ */
+void ask_for_route(flow_struct *flow){
+    printf("?p;%d;", flow->flow_id);
+    uip_debug_ipaddr_print(&flow->to);
+    printf("\n");
+    return 1;
+}
+
+/**
+ * Sends packet using wifi (through serial line)
+ *
+ * @param from
+ * @param to
+ * @param remote_port
+ * @param src_port
+ * @param data
+ */
 void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, int remote_port, int src_port, const void *data) {
     printf("!p;");
     uip_debug_ipaddr_print(from);
@@ -319,16 +394,15 @@ void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, int remote_por
 }
 
 /**
+ * Function used for send packet from source node to dst over wifi or using rpl
+ *
  * @param c
  * @param data
  * @param datalen
  * @param to
  * @return
  */
-int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
-                                   const void *data,
-                                   uint16_t datalen,
-                                   const uip_ipaddr_t *to)
+int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *data, uint16_t datalen, const uip_ipaddr_t *to)
 {
     flow_struct *flow = get_flow(to, data, datalen);
 
@@ -339,7 +413,6 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
             PROCESS_CONTEXT_END();
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
-//            printf("technology: RPL, %d\n", flow->technology->type);
             simple_udp_sendto(c, data, datalen, to);
             leds_on(RPL_SEND_LED);
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
@@ -350,6 +423,11 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
 
 }
 
+/**
+ * Function called from lower layer when node forwards data using rpl
+ *
+ * @return
+ */
 int heterogeneous_forwarding_callback() {
     flow_struct *flow = get_flow(&(UIP_IP_BUF->destipaddr), uip_appdata-4, uip_datalen());
 
@@ -360,18 +438,11 @@ int heterogeneous_forwarding_callback() {
             PROCESS_CONTEXT_END();
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi  # todo make sure that tech rpl exists!
-//            printf("technology: RPL, %d\n", flow->technology->type);
             leds_on(RPL_FORWARD_LED);
             return 1;
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
             send_packet_wifi(&(UIP_IP_BUF->srcipaddr), &(UIP_IP_BUF->destipaddr), UIP_HTONS(UIP_IP_BUF->destport),
                              UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4);
-//            printf("packet to send from: ");
-//            uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
-//            printf(" to: ");
-//            uip_debug_ipaddr_print(&(UIP_IP_BUF->destipaddr));
-//            printf(" srcPort: %d dstPort: %d data: %s length: %d \n",
-//                   UIP_HTONS(UIP_IP_BUF->srcport), UIP_HTONS(UIP_IP_BUF->destport), uip_appdata-4, uip_datalen());
             leds_on(WIFI_FORWARD_LED);
             return 0;
         }
@@ -401,7 +472,16 @@ printf("Sent using heterogeneous sent\n");
     return 0;
 }
 
-
+/**
+ * Allows to register callback function of upper layer using simple udp
+ *
+ * @param c
+ * @param local_port
+ * @param remote_addr
+ * @param remote_port
+ * @param receive_callback
+ * @return
+ */
 int heterogenous_udp_register(struct simple_udp_connection *c, uint16_t local_port, uip_ipaddr_t *remote_addr,
                               uint16_t remote_port, simple_udp_callback receive_callback) {
     receiver_callback = receive_callback;
@@ -457,7 +537,10 @@ void print_mode() {
     printf("!c%d\n", device_mode);
 }
 
-
+/**
+ * Returns node source global IPv6 address
+ * @return
+ */
 uip_ipaddr_t *get_my_ip() {
     return &src_ip;
 }
