@@ -63,6 +63,7 @@ typedef struct metrics_struct {
  */
 typedef struct flow_struct {
     struct flow_struct *next;
+    int flow_id;
     uip_ipaddr_t to;
     int energy;
     int bandwidth;

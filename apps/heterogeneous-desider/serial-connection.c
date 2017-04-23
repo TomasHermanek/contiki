@@ -19,8 +19,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-static short question_id = 0;
-const short MAX_QUESTION_ID = 10;
 
 static char payload[50];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
 uint16_t sport, dport;
@@ -28,89 +26,6 @@ static int payload_len;
 static uip_ipaddr_t sender_ip, receiver_ip;
 struct simple_udp_connection *c = NULL;
 
-LIST(question_list);
-MEMB(question_memb, struct question_struct, MAX_SIMULTANEOUS_QUESTIONS);
-
-/**
- * Generates new question_id, if it reaches limit, question_id starts again from 1
- *
- * @return
- */
-int get_question_id() {
-    if (question_id > MAX_QUESTION_ID)
-        question_id = 1;
-    else
-        question_id++;
-    return question_id;
-}
-
-/**
- * Function finds question in question_list using two individual filters
- *
- * @param question_id
- * @param to
- * @return
- */
-question_struct *find_question(int question_id, uip_ipaddr_t *to) {
-    struct question_struct *s;
-
-    for(s = list_head(question_list); s != NULL; s = list_item_next(s)) {
-        if (uip_ipaddr_cmp(to, &s->flow->to) || question_id == s->question_id)
-            return s;
-    }
-    return NULL;
-}
-
-/**
- * Removes oldest question
- */
-void clear_oldest_question() {
-    struct question_struct *s = list_head(question_list);
-
-    list_remove(question_list, s);
-    memb_free(&question_memb, s);
-}
-
-/**
- * Adds new question to question_list
- *
- * @param flow
- * @return
- */
-question_struct *add_question(flow_struct *flow)  {
-    short question_id = get_question_id();
-    struct question_struct *question;
-
-    question = memb_alloc(&question_memb);
-
-    while (question == NULL) {
-        clear_oldest_question();
-        question = memb_alloc(&question_memb);
-    }
-
-    question->question_id = question_id;
-    question->flow = flow;
-
-    list_add(question_list, question);
-    return question;
-}
-
-/**
- * Function will ask for route validity through serial line (if target route is available using WiFi tech)
- *
- * @param flow
- */
-void ask_for_route(flow_struct *flow){
-    question_struct *question = find_question(-1, &flow->to);
-
-    if (!question)
-        question = add_question(flow);
-
-    printf("?p;%d;", question->question_id);
-    uip_debug_ipaddr_print(&flow->to);
-    printf("\n");
-    return 1;
-}
 
 /**
  * Parses IPv6 string address and returns uip_ipaddr_t structure
@@ -175,11 +90,7 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
         if(uip_udp_conn->lport != 0 &&
            UIP_HTONS(*dport) == uip_udp_conn->lport &&
            (uip_udp_conn->rport == 0 || UIP_HTONS(*sport) == uip_udp_conn->rport)) {
-//           (uip_is_addr_unspecified(&uip_udp_conn->ripaddr) || uip_ipaddr_cmp(&UIP_IP_BUF->srcipaddr, &uip_udp_conn->ripaddr))) {
-//            printf("connection found");
             c=uip_udp_conn;
-           // sender_ip = &uip_udp_conn->sipaddr;
-//            sender_ip = &uip_udp_conn->ripaddr;
         }
     }
     return meta;
@@ -215,6 +126,9 @@ int parse_int_from_string(char *data, int *i, int start, int len) {
 }
 
 /**
+ * Handles commands sent over serial
+ * w -> register wifi technology with metrics
+ * p -> request to packet send (target may be this mote or another one)
  *
  * @param data
  * @param len
@@ -332,23 +246,16 @@ int handle_responses(char *data, int len) {
             num[i] = number;
             i++;
         }
-        question_struct *question = find_question(num[1], NULL);
-        if (question) {
-            if (!question->flow) {
-                list_remove(question_list, question);
-                memb_free(&question_memb, question);
-                printf("Question dropped because flow was removed");
-                return 1;
-            }
+
+        flow_struct *flow = find_flow_by_id(num[1], NULL);
+        if (flow) {
             if (num[2] == 1) {
-                question->flow->flags |= CNF;
+                flow->flags |= CNF;
             }
             else {
-                question->flow->flags &= ~CNF;
+                flow->flags &= ~CNF;
             }
-            question->flow->flags &= ~PND;
-            list_remove(question_list, question);
-            memb_free(&question_memb, question);
+            flow->flags &= ~PND;
         }
         return 1;
     }
