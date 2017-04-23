@@ -239,7 +239,7 @@ void fill_keys(const void *data, int *en, int *bw, int *etx) {
     int type = (int) data;
     int val = strtol(data, &data, 10);
 
-    if (val % 2 == 0) {
+    if ((val % 4 == 0) || (val % 4 == 1)) {
         *en = 50;
         *bw = 1;
         *etx = 1;
@@ -451,6 +451,11 @@ void print_src_ip() {
  */
 void print_mode() {
     printf("!c%d\n", device_mode);
+}
+
+
+uip_ipaddr_t *get_my_ip() {
+    return &src_ip;
 }
 
 /**

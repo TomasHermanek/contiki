@@ -22,7 +22,7 @@
 static short question_id = 0;
 const short MAX_QUESTION_ID = 10;
 
-static char payload[150];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
+static char payload[50];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
 uint16_t sport, dport;
 static int payload_len;
 static uip_ipaddr_t sender_ip, receiver_ip;
@@ -242,7 +242,12 @@ int handle_commands(char *data, int len) {
     }
     else if (data[1] == 'p') {
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
-        heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
+        if (uip_ipaddr_cmp(&receiver_ip, get_my_ip()))
+            heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
+        else {
+            uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
+            leds_on(RPL_FORWARD_LED);
+        }
     }
     return 0;
 }
@@ -296,12 +301,12 @@ int handle_requests(char *data, int len) {
         if (flow->technology->type == RPL_TECHNOLOGY) {
             //(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
             uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
+            printf("$p;%d;0;", question_id);
             leds_on(RPL_FORWARD_LED);
-            printf("$p;%d;0", question_id);
         }
         else {
+            printf("$p;%d;1;", question_id);
             leds_on(WIFI_FORWARD_LED);
-            printf("$p;%d;1", question_id);
         }
         return 1;
     }
