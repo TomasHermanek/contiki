@@ -461,7 +461,15 @@ coap_send_message(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
   uip_ipaddr_copy(&udp_conn->ripaddr, addr);
   udp_conn->rport = port;
 //tomas
-   heterogeneous_udp_sendto(udp_conn, data, length);
+/*printf("pred odoslanim: \n");
+    int i=0;
+    for (i = 0; i < length; i++)
+{
+  unsigned char c = ((char*)data)[i] ;
+  printf ("%02x ", c) ;
+}
+printf("\n");*/
+   heterogeneous_udp_sendto(udp_conn, data, length, addr, port);
   //uip_udp_packet_send(udp_conn, data, length);
 
   PRINTF("-sent UDP datagram (%u)-\n", length);
@@ -973,7 +981,7 @@ int
 coap_get_metrics(void *packet, const int **metric)
 {
   coap_packet_t *const coap_pkt = (coap_packet_t *)packet;
-  if(!IS_OPTION(coap_pkt, COAP_OPTION_URI_PATH)) {
+  if(!IS_OPTION(coap_pkt, COAP_OPTION_METRIC)) {
     return 0;
   }
   *metric = coap_pkt->metric;
@@ -989,9 +997,56 @@ coap_set_metrics(void *packet, const int *metric, size_t metric_len)
   return coap_pkt->metric_len;
 }
 
+struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len)
+{
+  //printf("Entering coap_get_k_val\n");
+  static coap_packet_t message[1];
+  uint8_t buffer[100]; //daj sem maximlanu velkost paketu
+  memcpy(buffer, data, data_len);
+  int ii;
+  struct k_val values;
+  uint8_t *p;
+  p=&values;
+  for(ii=1; ii<10; ii++){
+    *p=0;
+    p=p+1;
+  }
+/*printf("coapgetval data with len: %d\n", data_len);
+    int i=0;
+    for (i = 0; i < data_len; i++)
+{
+  unsigned char c = ((char*)data)[i] ;
+  printf ("%02x ", c) ;
+}
+printf("\n");*/
+  erbium_status_code = NO_ERROR;
+  erbium_status_code = coap_parse_message(message, buffer, data_len);
+       /* printf("moj  Parsed: v %u, t %u, tkl %u, c %u, mid %u\n", message->version,
+             message->type, message->token_len, message->code, message->mid);
+      printf("moj  URL: %.*s\n", message->uri_path_len, message->uri_path);
+      printf("moj  Payload: %.*s\n", message->payload_len, message->payload);
+  printf("datalen: %d\n", data_len);*/
+    if(erbium_status_code == NO_ERROR) {
+      if(!IS_OPTION(message, COAP_OPTION_METRIC)) {
+        printf("No metric option!\n");
+        return values;
+      }
+      return coap_metrics_deserialization(&message->metric);
+  }
+  else
+    printf("Erbium error!!!\n");
+    return values;
+
+}
+
+
+
 #define PRINT6ADDR(addr) printf("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
 
-void coap_metrics_deserialization(uint8_t *metrics){
+struct k_val coap_metrics_deserialization(uint8_t *metrics){
+   printf("Coap metric deserialization\n");
+printf("metrika 1: %d\n",metrics[0]);
+printf("metrika 2: %d\n",metrics[1]);
   uint8_t numbers[8] = {128, 64, 32, 16, 8, 4, 2, 1};
   int ii;
   struct k_val values;
@@ -1006,6 +1061,7 @@ void coap_metrics_deserialization(uint8_t *metrics){
   metrics[0]=metrics[0]-64;
   for(ii=2; ii<11; ii++){
     if(metrics[(ii / 8)]>=numbers[ii % 8]){
+//printf("zhoda: %d\n", metrics[jj]);
       metrics[(ii / 8)]=metrics[(ii / 8)]-numbers[ii % 8];
       *p=metrics[jj];  
       jj++;
@@ -1017,6 +1073,7 @@ void coap_metrics_deserialization(uint8_t *metrics){
     printf("%d\n", *p);
     p=p+1;
   }
+  return values;
 }
 
 void coap_metrics_serialization(void *packet, struct connection_profiles *c){
@@ -1066,12 +1123,15 @@ struct connection_profiles *c = NULL;
 coap_metrics_serialization(packet, c);
 }
 
-
-void coap_change_profile_priority(const char *resource_url, unsigned int profile, uip_ipaddr_t *server_ipaddr) {
+//if direction==0 -> decrease if direction==1 -> increase
+void coap_change_profile_priority(const char *resource_url, unsigned int profile, uip_ipaddr_t *server_ipaddr, uint8_t direction) {
     struct connection_profiles *c = NULL;   
 PRINT6ADDR(server_ipaddr);
 printf("\n");
-printf("change profile %s\n",resource_url);
+if (direction==1)
+   printf("Increase profile %s\n",resource_url);
+else
+   printf("Decrease profile %s\n",resource_url);
     for(c = list_head(connection_list); c != NULL; c = list_item_next(c)) {
 	//printf("cecko je: %p\n",c);
       if ((uip_ipaddr_cmp(&c->server_ipaddr, &server_ipaddr)==0)&&(c->resource_url==resource_url)){
@@ -1083,7 +1143,7 @@ printf("change profile %s\n",resource_url);
         printf("Neexistujuci zaznam\n");  
     }
     else{
-      change_profile_metric(profile, c);
+      change_profile_metric(profile, c, direction);
     }
 }
 
@@ -1185,18 +1245,29 @@ int set_pointer_to_metric(unsigned int profile, struct connection_profiles *c, u
   return 0;
 }
 
-void change_profile_metric(unsigned int profile, struct connection_profiles *c){
+void change_profile_metric(unsigned int profile, struct connection_profiles *c, uint8_t direction){
+int increaser=0;
+int decreaser=0;
+if (direction==0){
+increaser=16;
+decreaser=-16;
+}
+else
+{
+increaser=-16;
+decreaser=16;
+}
 printf("profile: %d\n profile1: %d\n profile2: %d\n",profile, c->profile1, c->profile2);
      if ((c->profile1!=profile)&&(c->profile2!=profile)){
        printf("zle zadany profile!\n");
      } else if (c->profile1==profile){
        //if ((change_one_profile(profile, c, -16)!=0)&&(c->profile2!=0))
-       if (change_one_profile(profile, c, -16)!=0)
-         if (change_one_profile(c->profile2, c, 16)!=0)
+       if (change_one_profile(profile, c, increaser)!=0)
+         if (change_one_profile(c->profile2, c, decreaser)!=0)
             printf("Cannot change metric\n");
      }else{
-       if (change_one_profile(profile, c, -16)!=0)
-         if (change_one_profile(c->profile1, c, 16)!=0)
+       if (change_one_profile(profile, c, increaser)!=0)
+         if (change_one_profile(c->profile1, c, decreaser)!=0)
             printf("Cannot change metric\n");
      } 
 }

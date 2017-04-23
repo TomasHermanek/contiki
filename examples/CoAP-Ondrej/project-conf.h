@@ -64,8 +64,8 @@
 #undef UIP_CONF_TCP
 #define UIP_CONF_TCP                   0
 
-#undef NETSTACK_CONF_MAC
-#define NETSTACK_CONF_MAC     nullmac_driver
+/*#undef NETSTACK_CONF_MAC
+#define NETSTACK_CONF_MAC     nullmac_driver*/
 
 /* Increase rpl-border-router IP-buffer when using more than 64. */
 #undef REST_MAX_CHUNK_SIZE

@@ -7,6 +7,8 @@
 #define CONTIKI_HETEROGENEOUS_DESIDER_H
 
 #include "net/ip/uip.h"
+#include "er-coap.h"
+#include "er-coap-engine.h"
 
 #define WIFI_TECHNOLOGY 1
 #define RPL_TECHNOLOGY 2

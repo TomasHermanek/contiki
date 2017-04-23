@@ -61,12 +61,13 @@
 #define PRINTLLADDR(addr)
 #endif
 
-#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfe80, 0, 0, 0, 0xc30c, 0x0000, 0x0000, 0x0002) 
+//#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfe80, 0, 0, 0, 0xc30c, 0x0000, 0x0000, 0x0002) 
+#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xaaaa, 0, 0, 0, 0x0212, 0x4b00, 0x060d, 0xb25c)
 
 #define LOCAL_PORT      UIP_HTONS(COAP_DEFAULT_PORT + 1)
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-#define TOGGLE_INTERVAL 1
+#define TOGGLE_INTERVAL 5
 
 
 #define PRINT6ADDR(addr) printf("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -118,7 +119,8 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
   SENSORS_ACTIVATE(button_sensor);
   //printf("Press a button to request higher...");
 #endif
-      coap_add_profile(resource_url, PROFILE_SPEED, PROFILE_LOWPOWER, 1, server_ipaddr/*, connection_list*/);
+SENSORS_ACTIVATE(button_sensor);
+      coap_add_profile(resource_url, PROFILE_LOWPOWER, PROFILE_SECURITY, 0, server_ipaddr/*, connection_list*/);
      coap_add_profile(resource_url2, PROFILE_RELIABILITY, 0, 1, server_ipaddr/*, connection_list*/);
       coap_add_profile(resource_url3, PROFILE_SECURITY, PROFILE_SPEED, 1, server_ipaddr/*, connection_list*/);
      
@@ -146,7 +148,7 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
 
 #if PLATFORM_HAS_BUTTON
     } else if(ev == sensors_event && data == &button_sensor) {
-       coap_change_profile_priority(resource_url, PROFILE_SPEED, &server_ipaddr);
+       coap_change_profile_priority(resource_url, PROFILE_LOWPOWER, &server_ipaddr, 0); //1==increase, 0==decrease
      //setHigherPriorities()
 	//setLowerPriorities()
 

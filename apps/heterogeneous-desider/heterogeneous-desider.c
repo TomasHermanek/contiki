@@ -231,9 +231,13 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c,
  * @return
  */
 int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, int len, const uip_ipaddr_t *toaddr, uint16_t toport) {
-    //todo ONDREJ -> call Ondrej function for parsing k-values (for metric)
-    printf("Sent using heterogeneous sent\n");
+printf("Sent using heterogeneous sent\n");
+   //printf("Sent using heterogeneous sent1\n");    
+//todo ONDREJ -> call Ondrej function for parsing k-values (for metric)
+    struct k_val values = coap_get_k_val(data, len);
+    
     uip_udp_packet_sendto(c, data, len, toaddr, toport);
+    //coap_receive
     return 0;
 }
 

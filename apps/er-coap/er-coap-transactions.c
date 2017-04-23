@@ -91,8 +91,19 @@ coap_send_transaction(coap_transaction_t *t)
 {
   PRINTF("Sending transaction %u\n", t->mid);
 //ondrej docasne
-  coap_send_message_response(&t->addr, t->port, t->packet, t->packet_len);
+  //coap_send_message_response(&t->addr, t->port, t->packet, t->packet_len);
 //ondrej
+//printf ("port: %d\n",t->port);
+/*printf ("transakcia data: \n");
+    int i=0;
+    for (i = 0; i < t->packet_len; i++)
+{
+  unsigned char c = ((char*)t->packet)[i] ;
+  printf ("%02x ", c) ;
+}
+printf("\n");*/
+
+coap_send_message(&t->addr, t->port, t->packet, t->packet_len);
   if(COAP_TYPE_CON ==
      ((COAP_HEADER_TYPE_MASK & t->packet[0]) >> COAP_HEADER_TYPE_POSITION)) {
     if(t->retrans_counter < COAP_MAX_RETRANSMIT) {
