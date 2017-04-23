@@ -170,6 +170,7 @@ int handle_commands(char *data, int len) {
  * Function handles requests to print data
  * m -> prints metrics table
  * f -> prints flow table
+ * s -> prints statistics
  *
  * @param data
  * @param len
@@ -181,6 +182,8 @@ int handle_prints(char *data, int len) {
         print_metrics_table();
     } else if (data[1] == 'f') {
         print_flow_table();
+    } else if (data[1] == 's') {
+        print_statistics_table();
     }
     printf(PRINT_END_SYMBOL);
     return 1;
@@ -212,14 +215,15 @@ int handle_requests(char *data, int len) {
 
         flow_struct *flow = get_flow(&receiver_ip, &payload, payload_len);
         // todo setup flags
+        // todo add stats
         if (flow->technology->type == RPL_TECHNOLOGY) {
             //(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
             uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
-            printf("$p;%d;0;", question_id);
+            printf("$p;%d;0;\n", question_id);
             leds_on(RPL_FORWARD_LED);
         }
         else {
-            printf("$p;%d;1;", question_id);
+            printf("$p;%d;1;\n", question_id);
             leds_on(WIFI_FORWARD_LED);
         }
         return 1;

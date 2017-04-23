@@ -7,8 +7,8 @@
 #define CONTIKI_HETEROGENEOUS_DESIDER_H
 
 #include "net/ip/uip.h"
-#include "er-coap.h"
-#include "er-coap-engine.h"
+//#include "er-coap.h"
+//#include "er-coap-engine.h"
 
 #define WIFI_TECHNOLOGY 1
 #define RPL_TECHNOLOGY 2
@@ -29,6 +29,18 @@
 #define WIFI_FORWARD_LED 0x03
 #define RPL_RECEIVE_LED 0x05
 #define WIFI_RECEIVE_LED 0x01
+
+/**
+ * Simple structure for handling basic database
+ */
+struct statistics {
+    int rpl_sent;
+    int rpl_forwarded_rpl;
+    int rpl_forwarded_wifi;
+    int wifi_sent;
+    int wifi_forwarded_rpl;
+    int wifi_forwarded_wifi;
+} statistics;
 
 /**
  * Structure defines technology unit

@@ -43,6 +43,8 @@ static int device_mode;
 static short flow_id = 0;
 const short MAX_FLOW_ID = 10;
 
+static struct statistics stats;
+
 /**
  * Allows to find technology by type, this function is useful when duplicates are finding
  *
@@ -274,6 +276,7 @@ void print_neighbours() {
         uip_debug_ipaddr_print(&r->ipaddr);
         printf(";");
     }
+    printf("\n");
 }
 
 /**
@@ -415,9 +418,11 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
             simple_udp_sendto(c, data, datalen, to);
             leds_on(RPL_SEND_LED);
+            stats.rpl_sent++;
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
             send_packet_wifi(&src_ip, to, c->remote_port, c->local_port, data);
             leds_on(WIFI_SEND_LED);
+            stats.wifi_sent++;
         }
     }
 
@@ -439,11 +444,13 @@ int heterogeneous_forwarding_callback() {
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi  # todo make sure that tech rpl exists!
             leds_on(RPL_FORWARD_LED);
+            stats.rpl_forwarded_rpl++;
             return 1;
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
             send_packet_wifi(&(UIP_IP_BUF->srcipaddr), &(UIP_IP_BUF->destipaddr), UIP_HTONS(UIP_IP_BUF->destport),
                              UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4);
             leds_on(WIFI_FORWARD_LED);
+            stats.wifi_forwarded_rpl++;
             return 0;
         }
     }
@@ -462,13 +469,13 @@ int heterogeneous_forwarding_callback() {
  * @return
  */
 int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, int len, const uip_ipaddr_t *toaddr, uint16_t toport) {
-printf("Sent using heterogeneous sent\n");
-   //printf("Sent using heterogeneous sent1\n");    
-//todo ONDREJ -> call Ondrej function for parsing k-values (for metric)
-    struct k_val values = coap_get_k_val(data, len);
-    
-    uip_udp_packet_sendto(c, data, len, toaddr, toport);
-    //coap_receive
+//printf("Sent using heterogeneous sent\n");
+//   //printf("Sent using heterogeneous sent1\n");
+////todo ONDREJ -> call Ondrej function for parsing k-values (for metric)
+//    struct k_val values = coap_get_k_val(data, len);
+//
+//    uip_udp_packet_sendto(c, data, len, toaddr, toport);
+//    //coap_receive
     return 0;
 }
 
@@ -536,6 +543,15 @@ void print_src_ip() {
 void print_mode() {
     printf("!c%d\n", device_mode);
 }
+
+/**
+ * Prints mote statistics about data sending
+ */
+void print_statistics_table() {
+    printf("Rpl forwarded from rpl: %d\nRpl forwarded from Wifi: %d\nRpl sent: %d\nWifi forwarded from RPL: %d\nWifi forwarded from WiFi: %d\nWifi sent: %d\n",
+           stats.rpl_forwarded_rpl, stats.rpl_forwarded_wifi, stats.rpl_sent, stats.wifi_forwarded_rpl, stats.wifi_forwarded_wifi, stats.rpl_sent);
+}
+
 
 /**
  * Returns node source global IPv6 address
