@@ -157,9 +157,20 @@ uint8_t uip_ext_opt_offset = 0;
 typedef int (* callback)(void);
 
 callback desider_callback;
+static uint8_t stop = 0;
 
 void set_callback(int (callback_function)(void)) {
     desider_callback = callback_function;
+}
+
+void pause_callback() {
+  stop = 1;
+  printf("stop %d\n", stop);
+}
+
+void play_callback() {
+  stop = 0;
+  printf("stop %d\n", stop);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1274,7 +1285,8 @@ uip_process(uint8_t flag)
 //      }
 //      printf("\n");
 
-      if (desider_callback) {
+      printf("a im before forwarding callbac stop = %d \n", stop);
+      if (desider_callback && stop == 0) {
         if (desider_callback()) {
           PRINTF("Forwarding packet to ");
           PRINT6ADDR(&UIP_IP_BUF->destipaddr);

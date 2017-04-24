@@ -474,6 +474,17 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *
  * @return
  */
 int heterogeneous_forwarding_callback() {
+    printf("comparing: \n");
+    uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
+    printf("\n");
+    uip_debug_ipaddr_print(&src_ip);
+    printf("Packet sport %d dplort: %d payload %s\n", UIP_HTONS(UIP_IP_BUF->srcport), UIP_HTONS(UIP_IP_BUF->destport),  uip_appdata-4);
+    printf("\n");
+    return 1;
+//
+//    if (uip_ipaddr_cmp(&src_ip, &(UIP_IP_BUF->srcipaddr)))      // it is not forwarding but sending!
+//        return 1;
+
     // todo create flow which represents path back to origin!
     uint8_t k_en, k_bw, k_etx;
     fill_keys(uip_appdata-4, &k_en, &k_bw, &k_etx);
@@ -492,14 +503,14 @@ int heterogeneous_forwarding_callback() {
             PROCESS_CONTEXT_END();
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi  # todo make sure that tech rpl exists!
-            printf("forwarding using rpl(from rpl)\n");
-
-            uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
-            printf("\n");
-            uip_debug_ipaddr_print(&(UIP_IP_BUF->destipaddr));
-            printf("\n");
-            printf("Packet sport %d dplort: %d payload %s\n", UIP_IP_BUF->srcport, UIP_IP_BUF->destport,  uip_appdata-4);
-            printf("\n");
+//            printf("forwarding using rpl(from rpl)\n");
+//
+//            uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
+//            printf("\n");
+//            uip_debug_ipaddr_print(&(UIP_IP_BUF->destipaddr));
+//            printf("\n");
+//            printf("Packet sport %d dplort: %d payload %s\n", UIP_IP_BUF->srcport, UIP_IP_BUF->destport,  uip_appdata-4);
+//            printf("\n");
 
             leds_on(RPL_FORWARD_LED);
             stats.rpl_forwarded_rpl++;

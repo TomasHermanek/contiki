@@ -227,7 +227,7 @@ int handle_requests(char *data, int len) {
 
         if (flow) {
             if (flow->technology->type == RPL_TECHNOLOGY) {
-                printf("forwarding using rpl(from wifi)\n");
+//                printf("forwarding using rpl(from wifi) %s\n", payload);
                 //(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
 //            printf("\n");
 //            uip_debug_ipaddr_print(&sender_ip);
@@ -235,15 +235,17 @@ int handle_requests(char *data, int len) {
 //            uip_debug_ipaddr_print(&receiver_ip);
 //            printf("\n");
 //            printf("Packet sport %d dplort: %d payload %s\n", sport, dport, payload);
-                uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
-                leds_on(RPL_FORWARD_LED);
+                //uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
+//                leds_on(RPL_FORWARD_LED);
                 printf("$p;%d;0;", question_id);        //  WARNING new line in this printf causes system reboot !
                 // add_from_flow(&sender_ip, flow);
             }
             else {
-                printf("forwarding using wifi(from wifi)\n");
+                printf("forwarding using wifi(from wifi) %s\n", payload);
                 leds_on(WIFI_FORWARD_LED);
                 printf("$p;%d;1;", question_id);        // WARNING new line in this printf causes system reboot !
+                flow->flags &= ~PND;
+                flow->flags |= CNF;
                 // add_from_flow(&sender_ip, flow);
             }
             // todo setup flags

@@ -148,7 +148,7 @@ PROCESS_THREAD(unicast_sender_process, ev, data)
     etimer_set(&send_timer, SEND_TIME);
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&send_timer));
-    addr = servreg_hack_lookup(SERVICE_ID);
+//    addr = servreg_hack_lookup(SERVICE_ID);
     if(addr != NULL) {
 //      static unsigned int message_number;
 //      char buf[20];

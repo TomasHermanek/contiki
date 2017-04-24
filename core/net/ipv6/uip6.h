@@ -8,3 +8,5 @@
 #endif //CONTIKI_UIP6_H_H
 
 void set_callback(int (callback_function)(void));
+void pause_callback();
+void play_callback();

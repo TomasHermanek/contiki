@@ -54,13 +54,15 @@ void
 uip_udp_packet_forward(uip_ipaddr_t from, uip_ipaddr_t to, uint16_t remote_port, uint16_t src_port, const void *data, int len) {
 #if UIP_UDP
     if(data != NULL && len <= (UIP_BUFSIZE - (UIP_LLH_LEN + UIP_IPUDPH_LEN))) {
-
         //uip_udp_conn->ripaddr = to;
+        uip_udp_conn = NULL;
 
         uip_slen = len;
         memmove(&uip_buf[UIP_LLH_LEN + UIP_IPUDPH_LEN], data, len);
 
+
         uip_process(UIP_UDP_SEND_CONN);
+
 
         UIP_IP_BUF->len[0] = ((uip_len - UIP_IPH_LEN) >> 8);
         UIP_IP_BUF->len[1] = ((uip_len - UIP_IPH_LEN) & 0xff);
