@@ -51,7 +51,7 @@ extern uint16_t uip_slen;
 
 /*---------------------------------------------------------------------------*/
 void
-uip_udp_packet_forward(uip_ipaddr_t from, uip_ipaddr_t to, int remote_port, int src_port, const void *data, int len) {
+uip_udp_packet_forward(uip_ipaddr_t from, uip_ipaddr_t to, uint16_t remote_port, uint16_t src_port, const void *data, int len) {
 #if UIP_UDP
     if(data != NULL && len <= (UIP_BUFSIZE - (UIP_LLH_LEN + UIP_IPUDPH_LEN))) {
 

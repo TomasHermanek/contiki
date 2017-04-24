@@ -20,7 +20,7 @@
 #include <stdlib.h>
 
 
-static char payload[50];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
+static char payload[20];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
 uint16_t sport, dport;
 static int payload_len;
 static uip_ipaddr_t sender_ip, receiver_ip;
@@ -211,20 +211,43 @@ int handle_requests(char *data, int len) {
     else if (data[1] == 'p') {
         int question_id;
 
+//        printf("packet %s\n", data);
         question_id = parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, -1);
 
-        flow_struct *flow = get_flow(&receiver_ip, &payload, payload_len);
-        // todo setup flags
-        // todo add stats
-        if (flow->technology->type == RPL_TECHNOLOGY) {
-            //(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
-            uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
-            printf("$p;%d;0;\n", question_id);
-            leds_on(RPL_FORWARD_LED);
+//        flow_struct *flow = get_flow(&receiver_ip, &payload, payload_len);
+
+        uint8_t k_en, k_bw, k_etx;
+        fill_keys(&payload, &k_en, &k_bw, &k_etx);
+        flow_struct *flow = find_flow(&receiver_ip, k_en, k_bw, k_etx);
+
+        if (!flow) {
+            tech_struct *dst_technology = select_technology(k_en, k_bw, k_etx);
+            flow = add_flow(&receiver_ip, dst_technology, k_en, k_bw, k_etx);
         }
-        else {
-            printf("$p;%d;1;\n", question_id);
-            leds_on(WIFI_FORWARD_LED);
+
+        if (flow) {
+            if (flow->technology->type == RPL_TECHNOLOGY) {
+                printf("forwarding using rpl(from wifi)\n");
+                //(c, &payload, payload_len, &receiver_ip);            // ToDo create new sendto fucntion which sets up src IP address correctly
+//            printf("\n");
+//            uip_debug_ipaddr_print(&sender_ip);
+//            printf("\n");
+//            uip_debug_ipaddr_print(&receiver_ip);
+//            printf("\n");
+//            printf("Packet sport %d dplort: %d payload %s\n", sport, dport, payload);
+                uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
+                leds_on(RPL_FORWARD_LED);
+                printf("$p;%d;0;", question_id);        //  WARNING new line in this printf causes system reboot !
+                // add_from_flow(&sender_ip, flow);
+            }
+            else {
+                printf("forwarding using wifi(from wifi)\n");
+                leds_on(WIFI_FORWARD_LED);
+                printf("$p;%d;1;", question_id);        // WARNING new line in this printf causes system reboot !
+                // add_from_flow(&sender_ip, flow);
+            }
+            // todo setup flags
+            // todo add stats
         }
         return 1;
     }
@@ -254,12 +277,12 @@ int handle_responses(char *data, int len) {
         flow_struct *flow = find_flow_by_id(num[1], NULL);
         if (flow) {
             if (num[2] == 1) {
-                flow->flags |= CNF;
+                flow->flags |= CNF;         // sets confirmed flag to true
             }
             else {
-                flow->flags &= ~CNF;
+                flow->flags &= ~CNF;        // sets confirmed flag to false
             }
-            flow->flags &= ~PND;
+            flow->flags &= ~PND;            // removes pending flag
         }
         return 1;
     }

@@ -14,7 +14,7 @@
 #define RPL_TECHNOLOGY 2
 
 #define MAX_TECHNOLOGIES 2
-#define MAX_FLOWS 5
+#define MAX_FLOWS 6
 
 #define MODE_ROOT 1
 #define MODE_NODE 2
@@ -34,12 +34,12 @@
  * Simple structure for handling basic database
  */
 struct statistics {
-    int rpl_sent;
-    int rpl_forwarded_rpl;
-    int rpl_forwarded_wifi;
-    int wifi_sent;
-    int wifi_forwarded_rpl;
-    int wifi_forwarded_wifi;
+    short rpl_sent;
+    short rpl_forwarded_rpl;
+    short rpl_forwarded_wifi;
+    short wifi_sent;
+    short wifi_forwarded_rpl;
+    short wifi_forwarded_wifi;
 } statistics;
 
 /**
@@ -47,8 +47,7 @@ struct statistics {
  */
 typedef struct tech_struct {
     struct tech_struct *next;
-    int type;
-    char *name;
+    uint8_t type;
 } tech_struct;
 
 /**
@@ -57,48 +56,44 @@ typedef struct tech_struct {
 typedef struct metrics_struct {
     struct metrics_struct *next;
     struct tech_struct *technology;
-    int energy;
-    int bandwidth;
-    int etx;
+    uint8_t energy;
+    uint8_t bandwidth;
+    uint8_t etx;
 } metrics_struct;
 
 #define FLOW_VALIDITY 255
 
 /**
- * flags structure -> |x|x|x|x|x|x|PND|CNF
+ * flags structure -> |x|x|x|x|x|UP|PND|CNF
  * CNF -> if flow was confirmed by linux device (used by wifi technology)
  * PND -> pending, if contiki waits for response to confirmation
+ * UP -> decision was made on packet send/forwarding upward
  */
 #define CNF 0x01
 #define PND 0x02
+#define UP 0x04
 
 /**
  * Structure that represents flow
  */
 typedef struct flow_struct {
     struct flow_struct *next;
-    int flow_id;
+    uint8_t flow_id;
     uip_ipaddr_t to;
-    int energy;
-    int bandwidth;
-    int etx;
-    int validity;
+    uint8_t energy;
+    uint8_t bandwidth;
+    uint8_t etx;
+    uint8_t validity;
     struct tech_struct *technology;
     char flags;
 } flow_struct;
-
-/**
- * \brief       Module initialization
- */
-void
-init_module();
 
 /**
  * \brief       Adds technology to technology table
  * @param type
  * @return
  */
-tech_struct *add_technology(int type);
+tech_struct *add_technology(uint8_t type);
 
 /**
  * \brief       Adds metrics to metrics table
@@ -108,6 +103,6 @@ tech_struct *add_technology(int type);
  * @param bandwidth
  * @param etx
  */
-void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int etx);
+void add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwidth, uint8_t etx);
 
 #endif //CONTIKI_HETEROGENEOUS_DESIDER_H

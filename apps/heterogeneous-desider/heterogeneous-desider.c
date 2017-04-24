@@ -23,6 +23,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "contiki.h"
+#include "reg.h"
+#include "cpu.h"
+#include "dev/smwdthrosc.h"
+
 #define UIP_IP_BUF   ((struct uip_udpip_hdr *)&uip_buf[UIP_LLH_LEN])
 
 LIST(tech_list);
@@ -38,10 +43,10 @@ simple_udp_callback receiver_callback;
 
 static struct simple_udp_connection *unicast_connection;    // Unicast connectin of parrent process
 static uip_ipaddr_t src_ip;
-static int device_mode;
+static uint8_t device_mode;
 
-static short flow_id = 0;
-const short MAX_FLOW_ID = 10;
+static uint8_t flow_id = 0;
+const uint8_t MAX_FLOW_ID = 10;
 
 static struct statistics stats;
 
@@ -51,14 +56,14 @@ static struct statistics stats;
  * @param type
  * @return
  */
-tech_struct *find_tech_by_type(int type) {
+tech_struct *find_tech_by_type(uint8_t type) {
     struct tech_struct *s;
 
     for(s = list_head(tech_list); s != NULL; s = list_item_next(s)) {
         if (s->type == type)
             return s;
     }
-    return NULL;
+    return s;
 }
 
 /**
@@ -74,7 +79,7 @@ metrics_struct *find_metrics_by_tech(tech_struct *tech) {
         if (s->technology == tech)
             return s;
     }
-    return NULL;
+    return s;
 }
 
 /**
@@ -86,29 +91,30 @@ metrics_struct *find_metrics_by_tech(tech_struct *tech) {
  * @param etx
  * @return
  */
-flow_struct *find_flow(const uip_ipaddr_t *to, int en, int bw, int etx) {
+flow_struct *find_flow(const uip_ipaddr_t *to, uint8_t en, uint8_t bw, uint8_t etx) {
     struct flow_struct *s;
 
     for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
         if (uip_ipaddr_cmp(to, &s->to) && en == s->energy && bw == s->bandwidth && etx == s->etx)
             return s;
     }
-    return NULL;
+    return s;
 }
 
 /**
+ * Finds flow byt its flow ID
  *
  * @param id
  * @return
  */
-flow_struct *find_flow_by_id(int id) {
+flow_struct *find_flow_by_id(uint8_t id) {
     struct flow_struct *s;
 
     for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
         if (id == s->flow_id)
             return s;
     }
-    return NULL;
+    return s;
 }
 
 /**
@@ -142,7 +148,7 @@ void clear_flows() {
 void clear_oldest_flow() {
     struct flow_struct *s, *oldest_flow = list_head(flow_list);
 
-    s = list_item_next(s);
+    s = list_item_next(oldest_flow);
     for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
         if (s->validity < oldest_flow->validity)
             oldest_flow = s;
@@ -157,7 +163,7 @@ void clear_oldest_flow() {
  *
  * @param type
  */
-tech_struct *add_technology(int type)  {
+tech_struct *add_technology(uint8_t type)  {
     struct tech_struct *tech = find_tech_by_type(type);
 
     if (tech == NULL) {
@@ -175,7 +181,7 @@ tech_struct *add_technology(int type)  {
 /**
  * Function allows to add metrics into Metrics table, which is linked to technology
  */
-void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int etx) {
+void add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwidth, uint8_t etx) {
     struct metrics_struct *metrics = find_metrics_by_tech(technology);
 
     if (metrics == NULL) {
@@ -197,7 +203,7 @@ void add_metrics(struct tech_struct *technology, int energy, int bandwidth, int 
  * by set up PND flag to true. If target tech is WIFI and mode is casual node, wifi always sends data to ROOT device,
  * which should be always accessible. Thus, flag is set up to CNF.
  */
-flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, int en, int bw, int etx) {
+flow_struct *add_flow(const uip_ipaddr_t *to, tech_struct *tech, uint8_t en, uint8_t bw, uint8_t etx) {
     struct flow_struct *flow;
 
     flow = memb_alloc(&flow_memb);
@@ -262,7 +268,16 @@ void print_flow_table() {
         printf("ID: %d ", s->flow_id);
         printf("Flow: -> ");
         uip_debug_ipaddr_print(&s->to);
-        printf(" %d/%d/%d - %d, %d, %d\n", s->energy, s->bandwidth, s->etx, s->technology->type, s->validity, s->flags);
+        printf(" %d/%d/%d - %d, %d, %d-", s->energy, s->bandwidth, s->etx, s->technology->type, s->validity, s->flags);
+        if (s->flags & CNF)
+            printf("confirmed,");
+        if (s->flags & PND)
+            printf("pending,");
+        if (s->flags & UP)
+            printf("up");
+        else
+            printf("down");
+        printf("\n");
     }
 }
 
@@ -286,11 +301,12 @@ void print_neighbours() {
  * @param bw
  * @param etx
  */
-void fill_keys(const void *data, int *en, int *bw, int *etx) {
+void fill_keys(const void *data, uint8_t *en, uint8_t *bw, uint8_t *etx) {
     int type = (int) data;
-    int val = strtol(data, &data, 10);
+    uint8_t val = strtol(data, &data, 10);
 
     if ((val % 4 == 0) || (val % 4 == 1)) {
+//    if ((val % 2 == 1)) {
         *en = 50;
         *bw = 1;
         *etx = 1;
@@ -311,7 +327,7 @@ void fill_keys(const void *data, int *en, int *bw, int *etx) {
  * @param k_etx
  * @return
  */
-int calculate_m(struct metrics_struct *ms, int k_en, int k_bw, int k_etx) {
+int calculate_m(struct metrics_struct *ms, uint8_t k_en, uint8_t k_bw, uint8_t k_etx) {
     return (ms->energy * k_en) + (ms->bandwidth * k_bw) + (ms->etx * k_etx);
 }
 
@@ -321,12 +337,10 @@ int calculate_m(struct metrics_struct *ms, int k_en, int k_bw, int k_etx) {
  * @param data
  * @return
  */
-tech_struct *select_technology(const void *data,int k_en,int k_bw,int k_etx) {
+tech_struct *select_technology(uint8_t k_en, uint8_t k_bw, uint8_t k_etx) {
     int m_res = -1;
     tech_struct *selected_technology = NULL;
     struct metrics_struct *s;
-
-    fill_keys(data, &k_en, &k_bw, &k_etx);
 
     for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
         if (m_res == -1) {
@@ -352,18 +366,37 @@ tech_struct *select_technology(const void *data,int k_en,int k_bw,int k_etx) {
  * @param datalen
  * @return
  */
-flow_struct *get_flow(const uip_ipaddr_t *to, const void *data, uint16_t datalen) {
-    int k_en, k_bw, k_etx;
-    fill_keys(data, &k_en, &k_bw, &k_etx);
+//flow_struct *get_flow(const uip_ipaddr_t *to, uint8_t k_en, uint8_t k_bw, uint8_t k_etx) {
+//    uint8_t k_en, k_bw, k_etx;
+//    fill_keys(data, &k_en, &k_bw, &k_etx);
+//
+//    flow_struct *flow;
+//    flow = find_flow(to, k_en, k_bw, k_etx);
+//
+//    if (!flow) {
+//        tech_struct *dst_technology;
+//        dst_technology = select_technology(k_en, k_bw, k_etx);
+//        flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
+//    }
+//}
+
+/**
+ * Adds source flow based on destination flow. Sets same technology, metrics values and flags. Adds UP flag.
+ *
+ * @param from
+ * @param dst_flow
+ */
+void add_from_flow(const uip_ipaddr_t *from, flow_struct *dst_flow) {
+    uint8_t k_en = dst_flow->energy, k_bw = dst_flow->bandwidth, k_etx = dst_flow->etx;
 
     flow_struct *flow;
-    flow = find_flow(to, k_en, k_bw, k_etx);
+    flow = find_flow(from, k_en, k_bw, k_etx);
 
     if (!flow) {
-        tech_struct *dst_technology;
-        dst_technology = select_technology(data, k_en, k_bw, k_etx);
-        flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
+        tech_struct *dst_technology = dst_flow->technology;
+        flow = add_flow(from, dst_technology, k_en, k_bw, k_etx);
     }
+    flow->flags = dst_flow->flags | UP;
 }
 
 /**
@@ -387,7 +420,7 @@ void ask_for_route(flow_struct *flow){
  * @param src_port
  * @param data
  */
-void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, int remote_port, int src_port, const void *data) {
+void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, uint16_t remote_port, uint16_t src_port, const void *data) {
     printf("!p;");
     uip_debug_ipaddr_print(from);
     printf(";");
@@ -407,9 +440,16 @@ void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, int remote_por
  */
 int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *data, uint16_t datalen, const uip_ipaddr_t *to)
 {
-    flow_struct *flow = get_flow(to, data, datalen);
+    uint8_t k_en, k_bw, k_etx;
+    fill_keys(data, &k_en, &k_bw, &k_etx);
+    flow_struct *flow = find_flow(to, k_en, k_bw, k_etx);
 
-    if (flow != NULL) {
+    if (!flow) {
+        tech_struct *dst_technology = select_technology(k_en, k_bw, k_etx);
+        flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
+    }
+
+    if (flow) {
         if (flow->flags & PND) {    // need to ask for route (pending flag active)
             PROCESS_CONTEXT_BEGIN(&serial_connection);
             ask_for_route(flow);
@@ -425,7 +465,7 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *
             stats.wifi_sent++;
         }
     }
-
+    return 0;
 }
 
 /**
@@ -434,23 +474,45 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *
  * @return
  */
 int heterogeneous_forwarding_callback() {
-    flow_struct *flow = get_flow(&(UIP_IP_BUF->destipaddr), uip_appdata-4, uip_datalen());
+    // todo create flow which represents path back to origin!
+    uint8_t k_en, k_bw, k_etx;
+    fill_keys(uip_appdata-4, &k_en, &k_bw, &k_etx);
+    flow_struct *flow = find_flow(&(UIP_IP_BUF->destipaddr), k_en, k_bw, k_etx);
 
-    if (flow != NULL) {
+//    flow_struct *flow = get_flow(&(UIP_IP_BUF->destipaddr), uip_appdata-4, uip_datalen());
+    if (!flow) {
+        tech_struct *dst_technology = select_technology(k_en, k_bw, k_etx);
+        flow = add_flow(&(UIP_IP_BUF->destipaddr), dst_technology, k_en, k_bw, k_etx);
+    }
+
+    if (flow) {
         if (flow->flags & PND) {    // need to ask for route (pending flag active)
             PROCESS_CONTEXT_BEGIN(&serial_connection);
             ask_for_route(flow);
             PROCESS_CONTEXT_END();
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi  # todo make sure that tech rpl exists!
+            printf("forwarding using rpl(from rpl)\n");
+
+            uip_debug_ipaddr_print(&(UIP_IP_BUF->srcipaddr));
+            printf("\n");
+            uip_debug_ipaddr_print(&(UIP_IP_BUF->destipaddr));
+            printf("\n");
+            printf("Packet sport %d dplort: %d payload %s\n", UIP_IP_BUF->srcport, UIP_IP_BUF->destport,  uip_appdata-4);
+            printf("\n");
+
             leds_on(RPL_FORWARD_LED);
             stats.rpl_forwarded_rpl++;
+//        add_from_flow(&(UIP_IP_BUF->srcipaddr), flow);
             return 1;
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
+            printf("forwarding using wifi(from rpl)\n");
             send_packet_wifi(&(UIP_IP_BUF->srcipaddr), &(UIP_IP_BUF->destipaddr), UIP_HTONS(UIP_IP_BUF->destport),
                              UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4);
             leds_on(WIFI_FORWARD_LED);
             stats.wifi_forwarded_rpl++;
+
+//        add_from_flow(&(UIP_IP_BUF->srcipaddr), flow);
             return 0;
         }
     }
@@ -468,7 +530,7 @@ int heterogeneous_forwarding_callback() {
  * @param toport
  * @return
  */
-int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, int len, const uip_ipaddr_t *toaddr, uint16_t toport) {
+int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, uint8_t len, const uip_ipaddr_t *toaddr, uint16_t toport) {
 //printf("Sent using heterogeneous sent\n");
 //   //printf("Sent using heterogeneous sent1\n");
 ////todo ONDREJ -> call Ondrej function for parsing k-values (for metric)
@@ -493,6 +555,7 @@ int heterogenous_udp_register(struct simple_udp_connection *c, uint16_t local_po
                               uint16_t remote_port, simple_udp_callback receive_callback) {
     receiver_callback = receive_callback;
     simple_udp_register(c, local_port, remote_addr, remote_port, receive_callback);
+    return 0;
 }
 
 /**
@@ -524,7 +587,7 @@ void heterogenous_udp_callback(struct simple_udp_connection *c,
  */
 void print_src_ip() {
     printf("!r");
-    int i;
+    uint8_t i;
     uint8_t state;
     for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
         state = uip_ds6_if.addr_list[i].state;
@@ -564,7 +627,7 @@ uip_ipaddr_t *get_my_ip() {
 /**
  * Initialize module
  */
-void init_module(int mode, const uip_ipaddr_t *ip) {
+void init_module(uint8_t mode, const uip_ipaddr_t *ip) {
     NETSTACK_MAC.off(1);
     leds_init();
 
