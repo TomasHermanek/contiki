@@ -158,6 +158,7 @@ int handle_commands(char *data, int len) {
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
         heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
     } else if (data[1] == 'f') {
+        parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
         uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
         leds_on(RPL_FORWARD_LED);
     }

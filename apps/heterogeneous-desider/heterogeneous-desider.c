@@ -305,8 +305,8 @@ void fill_keys(const void *data, uint8_t *en, uint8_t *bw, uint8_t *etx) {
     int type = (int) data;
     uint8_t val = strtol(data, &data, 10);
 
-    if ((val % 4 == 0) || (val % 4 == 1)) {
-//    if ((val % 2 == 1)) {
+//    if ((val % 4 == 0) || (val % 4 == 1)) {
+    if ((val % 2 == 1)) {
         *en = 50;
         *bw = 1;
         *etx = 1;
