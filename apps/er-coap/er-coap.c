@@ -1044,9 +1044,9 @@ printf("\n");*/
 #define PRINT6ADDR(addr) printf("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
 
 struct k_val coap_metrics_deserialization(uint8_t *metrics){
-   printf("Coap metric deserialization\n");
-printf("metrika 1: %d\n",metrics[0]);
-printf("metrika 2: %d\n",metrics[1]);
+//   printf("Coap metric deserialization\n");
+//printf("metrika 1: %d\n",metrics[0]);
+//printf("metrika 2: %d\n",metrics[1]);
   uint8_t numbers[8] = {128, 64, 32, 16, 8, 4, 2, 1};
   int ii;
   struct k_val values;
@@ -1070,7 +1070,7 @@ printf("metrika 2: %d\n",metrics[1]);
   }
   p=&values;
   for(ii=1; ii<10; ii++){
-    printf("%d\n", *p);
+//    printf("%d\n", *p);
     p=p+1;
   }
   return values;
