@@ -39,16 +39,20 @@ MEMB(metrics_memb, struct metrics_struct, MAX_TECHNOLOGIES);
 LIST(flow_list);
 MEMB(flow_memb, struct flow_struct, MAX_FLOWS);
 
-simple_udp_callback receiver_callback;
-
-static struct simple_udp_connection *unicast_connection;    // Unicast connectin of parrent process
 static uip_ipaddr_t src_ip;
 static uint8_t device_mode;
 
 static uint8_t flow_id = 0;
 const uint8_t MAX_FLOW_ID = 10;
 
+#ifdef HETEROGENEOUS_STATISTICS
 static struct statistics stats;
+#endif
+
+#ifdef SIMPLE_UDP_HETEROGENEOUS
+static struct simple_udp_connection *unicast_connection;    // Unicast connectin of parrent process
+simple_udp_callback receiver_callback;
+#endif
 
 /**
  * Allows to find technology by type, this function is useful when duplicates are finding
@@ -295,18 +299,20 @@ void print_neighbours() {
 }
 
 /**
- * ToDo this section must implement keys extraction from Ondrej part
+ * Allows to extract used metric keys
+ *
  * @param data
  * @param en
  * @param bw
  * @param etx
  */
-void fill_keys(const void *data, uint8_t *en, uint8_t *bw, uint8_t *etx) {
+void fill_keys(const void *data,uint8_t len, uint8_t *en, uint8_t *bw, uint8_t *etx) {
+#ifdef SIMPLE_UDP_HETEROGENEOUS
     int type = (int) data;
     uint8_t val = strtol(data, &data, 10);
 
-//    if ((val % 4 == 0) || (val % 4 == 1)) {
-    if ((val % 2 == 1)) {
+    if ((val % 4 == 0) || (val % 4 == 1)) {
+//    if ((val % 2 == 1)) {
         *en = 50;
         *bw = 1;
         *etx = 1;
@@ -316,6 +322,13 @@ void fill_keys(const void *data, uint8_t *en, uint8_t *bw, uint8_t *etx) {
         *bw = 1;
         *etx = 1;
     }
+#endif
+#ifdef COAP_HETEROGENEOUS
+    struct k_val values = coap_get_k_val(data, len);
+    *en = values.rem_energy;
+    *bw = values.bandwidth;
+    *etx = values.efx;
+#endif
 }
 
 /**
@@ -359,28 +372,6 @@ tech_struct *select_technology(uint8_t k_en, uint8_t k_bw, uint8_t k_etx) {
 }
 
 /**
- * Finds flow in flow table or create new one
- *
- * @param to
- * @param data
- * @param datalen
- * @return
- */
-//flow_struct *get_flow(const uip_ipaddr_t *to, uint8_t k_en, uint8_t k_bw, uint8_t k_etx) {
-//    uint8_t k_en, k_bw, k_etx;
-//    fill_keys(data, &k_en, &k_bw, &k_etx);
-//
-//    flow_struct *flow;
-//    flow = find_flow(to, k_en, k_bw, k_etx);
-//
-//    if (!flow) {
-//        tech_struct *dst_technology;
-//        dst_technology = select_technology(k_en, k_bw, k_etx);
-//        flow = add_flow(to, dst_technology, k_en, k_bw, k_etx);
-//    }
-//}
-
-/**
  * Adds source flow based on destination flow. Sets same technology, metrics values and flags. Adds UP flag.
  *
  * @param from
@@ -420,12 +411,18 @@ void ask_for_route(flow_struct *flow){
  * @param src_port
  * @param data
  */
-void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, uint16_t remote_port, uint16_t src_port, const void *data) {
+void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, uint16_t remote_port, uint16_t src_port, const void *data, uint16_t len) {
+    uint8_t *converted = (uint8_t*) data;
     printf("!p;");
     uip_debug_ipaddr_print(from);
     printf(";");
     uip_debug_ipaddr_print(to);
-    printf(";%d;%d;%s", remote_port, src_port, data);
+    printf(";%d;%d;", remote_port, src_port);
+
+    int i = 0;
+    for (i = 0; i <= len; i++) {
+        printf("%02x",converted[i]);
+    }
     printf("\n");
 }
 
@@ -441,7 +438,7 @@ void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, uint16_t remot
 int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *data, uint16_t datalen, const uip_ipaddr_t *to)
 {
     uint8_t k_en, k_bw, k_etx;
-    fill_keys(data, &k_en, &k_bw, &k_etx);
+    fill_keys(data, datalen, &k_en, &k_bw, &k_etx);
     flow_struct *flow = find_flow(to, k_en, k_bw, k_etx);
 
     if (!flow) {
@@ -458,11 +455,15 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
             simple_udp_sendto(c, data, datalen, to);
             leds_on(RPL_SEND_LED);
+#ifdef HETEROGENEOUS_STATISTICS
             stats.rpl_sent++;
+#endif
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
-            send_packet_wifi(&src_ip, to, c->remote_port, c->local_port, data);
+            send_packet_wifi(&src_ip, to, UIP_HTONS(c->remote_port), UIP_HTONS(c->local_port), data, datalen);
             leds_on(WIFI_SEND_LED);
+#ifdef HETEROGENEOUS_STATISTICS
             stats.wifi_sent++;
+#endif
         }
     }
     return 0;
@@ -476,7 +477,7 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *
 int heterogeneous_forwarding_callback() {
     // todo create flow which represents path back to origin!
     uint8_t k_en, k_bw, k_etx;
-    fill_keys(uip_appdata-4, &k_en, &k_bw, &k_etx);
+    fill_keys(uip_appdata-4, uip_datalen(), &k_en, &k_bw, &k_etx);
     flow_struct *flow = find_flow(&(UIP_IP_BUF->destipaddr), k_en, k_bw, k_etx);
 
 //    flow_struct *flow = get_flow(&(UIP_IP_BUF->destipaddr), uip_appdata-4, uip_datalen());
@@ -493,14 +494,18 @@ int heterogeneous_forwarding_callback() {
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi  # todo make sure that tech rpl exists!
             leds_on(RPL_FORWARD_LED);
+#ifdef HETEROGENEOUS_STATISTICS
             stats.rpl_forwarded_rpl++;
+#endif
 //        add_from_flow(&(UIP_IP_BUF->srcipaddr), flow);
             return 1;
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
             send_packet_wifi(&(UIP_IP_BUF->srcipaddr), &(UIP_IP_BUF->destipaddr), UIP_HTONS(UIP_IP_BUF->destport),
-                             UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4);
+                             UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4, uip_datalen());
             leds_on(WIFI_FORWARD_LED);
+#ifdef HETEROGENEOUS_STATISTICS
             stats.wifi_forwarded_rpl++;
+#endif
 
 //        add_from_flow(&(UIP_IP_BUF->srcipaddr), flow);
             return 0;
@@ -509,9 +514,8 @@ int heterogeneous_forwarding_callback() {
     return 1;
 }
 
-
+#ifdef COAP_HETEROGENEOUS
 /**
- * ToDo function which must be used by Ondrej to send packet using coap
  *
  * @param c
  * @param data
@@ -521,16 +525,51 @@ int heterogeneous_forwarding_callback() {
  * @return
  */
 int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, uint8_t len, const uip_ipaddr_t *toaddr, uint16_t toport) {
-//printf("Sent using heterogeneous sent\n");
-//   //printf("Sent using heterogeneous sent1\n");
-////todo ONDREJ -> call Ondrej function for parsing k-values (for metric)
-//    struct k_val values = coap_get_k_val(data, len);
-//
-//    uip_udp_packet_sendto(c, data, len, toaddr, toport);
-//    //coap_receive
+    printf("Sent using heterogeneous sent1\n");
+
+    uint8_t k_en, k_bw, k_etx;
+    fill_keys(data, len, &k_en, &k_bw, &k_etx);
+    flow_struct *flow = find_flow(toaddr, k_en, k_bw, k_etx);
+
+    if (!flow) {
+        tech_struct *dst_technology = select_technology(k_en, k_bw, k_etx);
+        flow = add_flow(toaddr, dst_technology, k_en, k_bw, k_etx);
+    }
+
+    if (flow) {
+        if (flow->flags & PND) {    // need to ask for route (pending flag active)
+            PROCESS_CONTEXT_BEGIN(&serial_connection);
+            ask_for_route(flow);
+            PROCESS_CONTEXT_END();
+        }
+        if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
+//            simple_udp_sendto(c, data, datalen, to);
+            uip_udp_packet_sendto(c, data, len, toaddr, toport);
+            leds_on(RPL_SEND_LED);
+#ifdef HETEROGENEOUS_STATISTICS
+            stats.rpl_sent++;
+#endif
+        } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
+            printf("sending packet with payload %s\n", data);
+            uint8_t *converted = (uint8_t*) data;
+            int i = 0;
+            for (i = 0; i <= len; i++) {
+                printf("%02x",converted[i]);
+            }
+            printf("\n");
+            send_packet_wifi(&src_ip, toaddr, UIP_HTONS(c->rport), UIP_HTONS(c->lport), data, len);
+            leds_on(WIFI_SEND_LED);
+#ifdef HETEROGENEOUS_STATISTICS
+            stats.wifi_sent++;
+#endif
+        }
+    }
+
     return 0;
 }
+#endif
 
+#ifdef SIMPLE_UDP_HETEROGENEOUS
 /**
  * Allows to register callback function of upper layer using simple udp
  *
@@ -571,6 +610,7 @@ void heterogenous_udp_callback(struct simple_udp_connection *c,
     if (receiver_callback)
         receiver_callback(c, sender_addr, sender_port, receiver_addr, receiver_port, data, datalen);
 }
+#endif
 
 /**
  * Prints mote IPv6 address database in format !p;<addr1>;<addr2>; ...
@@ -597,6 +637,7 @@ void print_mode() {
     printf("!c%d\n", device_mode);
 }
 
+#ifdef HETEROGENEOUS_STATISTICS
 /**
  * Prints mote statistics about data sending
  */
@@ -604,7 +645,7 @@ void print_statistics_table() {
     printf("Rpl forwarded from rpl: %d\nRpl forwarded from Wifi: %d\nRpl sent: %d\nWifi forwarded from RPL: %d\nWifi forwarded from WiFi: %d\nWifi sent: %d\n",
            stats.rpl_forwarded_rpl, stats.rpl_forwarded_wifi, stats.rpl_sent, stats.wifi_forwarded_rpl, stats.wifi_forwarded_wifi, stats.rpl_sent);
 }
-
+#endif
 
 /**
  * Returns node source global IPv6 address

@@ -20,28 +20,93 @@
 #include <stdlib.h>
 
 
-static char payload[20];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
+static uint8_t payload[70];       // ToDo refactor buff size -> size must be identical with uip_buff - headers
 uint16_t sport, dport;
-static int payload_len;
+static short payload_len;
 static uip_ipaddr_t sender_ip, receiver_ip;
 struct simple_udp_connection *c = NULL;
 
+/**
+ * Converts character to real hexadecimal value
+ *
+ * @param c
+ * @return
+ */
+static uint8_t unit_from_char(char c)
+{
+    if(c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if(c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if(c >= '0' && c <= '9') return c - '0';
+    return 0;
+}
 
 /**
- * Parses IPv6 string address and returns uip_ipaddr_t structure
+ * Fills payload buffer with real value converted from hexadecimal string
+ *
+ * @param hex_string
+ */
+void hex_string_to_value(char *hex_string)
+{
+    uint8_t *result;
+    uint8_t *p, len, i;
+
+    len = strlen(hex_string) / 2;
+
+    for(i=0, p = (uint8_t *) hex_string; i<len; i++) {
+        payload[i] = (unit_from_char(*p) << 4) | unit_from_char(*(p+1));
+        p += 2;
+    }
+    payload_len = len;
+    return result;
+}
+
+/**
+ * Parses IPv6 string address and returns uip_ipaddr_t structure, this function is depreciated because, it was created
+ * for parsing IPv6 address in extended notation and lately was extended to support compressed address too. It should be
+ * refactored for better performance
+ *
  * @param ip_string
  * @return
  */
 uip_ipaddr_t *string_ipv6_to_uip_ipaddr(char *ip_string, uip_ipaddr_t *ipv6) {
+    uint16_t ip[8];
+    char *actual = ip_string;
+
+    uint8_t bool_sep = 0,left = 0, right = 0, i, len = strlen(ip_string);
+
+    for (i = 0; i <= len; i++) {
+        if (ip_string[i] == ':' && ip_string[i+1] == ':') {
+            bool_sep = 1;
+        } else if (ip_string[i] == ':') {
+            if (bool_sep == 0)
+                left++;
+            else
+                right++;
+        }
+    }
+    right = 8 - right;
+
+    for (i = left + 1; i <= right-1; i++) {
+        ip[i] = 0;
+    }
+
     char *end_str, *token = strtok_r(ip_string, ":", &end_str);
-    int ip[8], i = 0;
+    i = 0;
 
     while (token != NULL) {
-        int number = (int)strtol(token, NULL, 16);
+        uint16_t number = (uint16_t)strtol(token, NULL, 16);
         token = strtok_r(NULL, ":", &end_str);
-        ip[i] = number;
-        i++;
+
+        if (i <= left) {
+            ip[i] = number;
+            i++;
+        }
+        else {
+            ip[right] = number;
+            right++;
+        }
     }
+
     uip_ip6addr(ipv6, ip[0], ip[1], ip[2], ip[3], ip[4], ip[5], ip[6], ip[7]);
     return ipv6;
 }
@@ -53,10 +118,10 @@ uip_ipaddr_t *string_ipv6_to_uip_ipaddr(char *ip_string, uip_ipaddr_t *ipv6) {
  * @param len
  * @return
  */
-int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport, struct simple_udp_connection *c,
+uint8_t parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport, struct simple_udp_connection *c,
                             char *payload, int *payload_len, uip_ipaddr_t *sender_ip, uip_ipaddr_t *receiver_ip, int i) {
     char *end_str, *token = strtok_r(data, ";", &end_str);
-    int meta;
+    uint8_t meta;
 
     while (token != NULL)  {
         switch (i) {
@@ -65,9 +130,11 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
                 break;
             case 1:
                 string_ipv6_to_uip_ipaddr(token, sender_ip);
+                uip_debug_ipaddr_print(sender_ip);
                 break;
             case 2:
                 string_ipv6_to_uip_ipaddr(token, receiver_ip);
+                uip_debug_ipaddr_print(receiver_ip);
                 break;
             case 3:
                 *sport = strtol(token, &token, 10);
@@ -76,8 +143,7 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
                 *dport = strtol(token, &token, 10);
                 break;
             case 5:
-                strcpy(payload, token);
-                *payload_len = strlen(token) + 1;
+                hex_string_to_value(token);
                 break;
             case 6:
                 break;
@@ -86,6 +152,7 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
         i++;
     }
 
+    // finds existing connection in database of connections
     for(uip_udp_conn = &uip_udp_conns[0]; uip_udp_conn < &uip_udp_conns[UIP_UDP_CONNS]; ++uip_udp_conn) {
         if(uip_udp_conn->lport != 0 &&
            UIP_HTONS(*dport) == uip_udp_conn->lport &&
@@ -105,9 +172,9 @@ int parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dport,
  * @param len
  * @return
  */
-int parse_int_from_string(char *data, int *i, int start, int len) {
-    char string[10];
-    int j;
+uint8_t parse_int_from_string(char *data, int *i, uint8_t start, uint8_t len) {
+    char string[3];
+    uint8_t j;
 
     for (j=start; j <= len; j++) {
         if (!isdigit(data[j])) {
@@ -135,10 +202,10 @@ int parse_int_from_string(char *data, int *i, int start, int len) {
  * @param len
  * @return
  */
-int handle_commands(char *data, int len) {
+int handle_commands(char *data, uint8_t len) {
     if (data[1] == 'w') {
         tech_struct *wifi_tech = add_technology(WIFI_TECHNOLOGY);
-        int i, en = 0, bw = 0, etx = 0;
+        uint8_t i, en = 0, bw = 0, etx = 0;
 
         for (i=2;i <= len; i++) {
             if (data[i] == 'e') {
@@ -156,9 +223,28 @@ int handle_commands(char *data, int len) {
         return 1;
     } else if (data[1] == 'p') {
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
+#ifdef SIMPLE_UDP_HETEROGENEOUS
         heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
+#endif
+#ifdef COAP_HETEROGENEOUS
+        printf("deliver packet with payload %s\n", payload);
+        uint8_t *converted = (uint8_t*) payload;
+        int i = 0;
+        for (i = 0; i <= payload_len; i++) {
+            printf("%02x",converted[i]);
+        }
+        printf("\n");
+        coap_receive_params(payload_len, &payload, sport, sender_ip);
+#endif
     } else if (data[1] == 'f') {
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
+        printf("forward packet with payload %s\n", payload);
+        uint8_t *converted = (uint8_t*) payload;
+        int i = 0;
+        for (i = 0; i <= payload_len; i++) {
+            printf("%02x",converted[i]);
+        }
+        printf("\n");
         uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
         leds_on(RPL_FORWARD_LED);
     }
@@ -181,9 +267,12 @@ int handle_prints(char *data, int len) {
         print_metrics_table();
     } else if (data[1] == 'f') {
         print_flow_table();
-    } else if (data[1] == 's') {
+    }
+#ifdef HETEROGENEOUS_STATISTICS
+    else if (data[1] == 's') {
         print_statistics_table();
     }
+#endif
     printf(PRINT_END_SYMBOL);
     return 1;
 }
@@ -213,9 +302,19 @@ int handle_requests(char *data, int len) {
         question_id = parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, -1);
 
 //        flow_struct *flow = get_flow(&receiver_ip, &payload, payload_len);
+//        printf("arrived packet heterogeneous with data to forward %s\n", payload);
+//        printf("Packet length: %d\n", payload_len);
 
+//        uint8_t *converted = (uint8_t*) data;
+        printf("asking for forward with data %s\n", payload);
+        uint8_t *converted = (uint8_t*) payload;
+        int i = 0;
+        for (i = 0; i <= payload_len; i++) {
+            printf("%02x",converted[i]);
+        }
+        printf("\n");
         uint8_t k_en, k_bw, k_etx;
-        fill_keys(&payload, &k_en, &k_bw, &k_etx);
+        fill_keys(&payload, payload_len, &k_en, &k_bw, &k_etx);
         flow_struct *flow = find_flow(&receiver_ip, k_en, k_bw, k_etx);
 
         if (!flow) {

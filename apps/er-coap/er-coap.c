@@ -1001,7 +1001,7 @@ struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len)
 {
   //printf("Entering coap_get_k_val\n");
   static coap_packet_t message[1];
-  uint8_t buffer[100]; //daj sem maximlanu velkost paketu
+  uint8_t buffer[REST_MAX_CHUNK_SIZE]; //daj sem maximlanu velkost paketu
   memcpy(buffer, data, data_len);
   int ii;
   struct k_val values;
@@ -1011,14 +1011,14 @@ struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len)
     *p=0;
     p=p+1;
   }
-/*printf("coapgetval data with len: %d\n", data_len);
+printf("coapgetval data with len: %d\n", data_len);
     int i=0;
     for (i = 0; i < data_len; i++)
 {
   unsigned char c = ((char*)data)[i] ;
   printf ("%02x ", c) ;
 }
-printf("\n");*/
+printf("\n");
   erbium_status_code = NO_ERROR;
   erbium_status_code = coap_parse_message(message, buffer, data_len);
        /* printf("moj  Parsed: v %u, t %u, tkl %u, c %u, mid %u\n", message->version,
@@ -1027,6 +1027,7 @@ printf("\n");*/
       printf("moj  Payload: %.*s\n", message->payload_len, message->payload);
   printf("datalen: %d\n", data_len);*/
     if(erbium_status_code == NO_ERROR) {
+      return coap_metrics_deserialization(&message->metric);
       if(!IS_OPTION(message, COAP_OPTION_METRIC)) {
         printf("No metric option!\n");
         return values;

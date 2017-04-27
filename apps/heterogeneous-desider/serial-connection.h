@@ -7,6 +7,11 @@
 #ifndef CONTIKI_SERIAL_CONNECTION_H
 #define CONTIKI_SERIAL_CONNECTION_H
 
+#ifdef COAP_HETEROGENEOUS
+#include "er-coap.h"
+#include "er-coap-engine.h"
+#endif
+
 #define MAX_SIMULTANEOUS_QUESTIONS 3
 
 static char const* PRINT_START_SYMBOL = "<-\n";

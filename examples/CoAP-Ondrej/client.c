@@ -48,6 +48,7 @@
 #include "er-coap-engine.h"
 #include "dev/button-sensor.h"
 #include "symbols.h"
+#include "heterogeneous-desider.h"
 
 #define DEBUG 0
 #if DEBUG
@@ -62,7 +63,7 @@
 #endif
 
 //#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfe80, 0, 0, 0, 0xc30c, 0x0000, 0x0000, 0x0002) 
-#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xaaaa, 0, 0, 0, 0x0212, 0x4b00, 0x060d, 0xb25c)
+#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xaaaa, 0, 0, 0, 0x0212, 0x4b00, 0x060d, 0x6161)
 
 #define LOCAL_PORT      UIP_HTONS(COAP_DEFAULT_PORT + 1)
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
@@ -101,17 +102,45 @@ client_chunk_handler(void *response)
 
   printf("|%.*s", len, (char *)chunk);
 }
+
+static uip_ipaddr_t *
+set_global_address(void)
+{
+  static uip_ipaddr_t ipaddr;
+  int i;
+  uint8_t state;
+
+    uip_ip6addr(&ipaddr, 0xaaaa, 0, 0, 0, 0, 0, 0, 0);
+  uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
+  uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
+
+  printf("IPv6 addresses: ");
+  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
+    state = uip_ds6_if.addr_list[i].state;
+    if(uip_ds6_if.addr_list[i].isused &&
+       (state == ADDR_TENTATIVE || state == ADDR_PREFERRED)) {
+      uip_debug_ipaddr_print(&uip_ds6_if.addr_list[i].ipaddr);
+      printf("\n");
+    }
+  }
+
+  return &ipaddr;
+}
+
 PROCESS_THREAD(coapv2_example_client, ev, data)
 {
   PROCESS_BEGIN();
 
-  static coap_packet_t request[1];     
+  static coap_packet_t request[1];
+
+  uip_ipaddr_t *ipaddr;
+  ipaddr = set_global_address();
 
   SERVER_NODE(&server_ipaddr);
 
   coap_init_engine();
 //tomas
-  init_module();
+  init_module(MODE_NODE, ipaddr);
 
   etimer_set(&et, TOGGLE_INTERVAL * CLOCK_SECOND);
 

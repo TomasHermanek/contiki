@@ -80,7 +80,7 @@
 
 /* Multiplies with chunk size, be aware of memory constraints. */
 #undef COAP_MAX_OPEN_TRANSACTIONS
-#define COAP_MAX_OPEN_TRANSACTIONS     4
+#define COAP_MAX_OPEN_TRANSACTIONS     2
 
 /* Must be <= open transactions, default is COAP_MAX_OPEN_TRANSACTIONS-1. */
 /*
@@ -93,6 +93,14 @@
 #define COAP_LINK_FORMAT_FILTERING     0
 #undef COAP_PROXY_OPTION_PROCESSING
 #define COAP_PROXY_OPTION_PROCESSING   0
+
+/* Added by desider master Tomas */
+#undef COAP_HETEROGENEOUS
+#define COAP_HETEROGENEOUS 1
+
+#define SERIAL_LINE_CONF_BUFSIZE 128
+#define PROCESS_CONF_NO_PROCESS_NAMES 1
+/* end Added by desider master */
 
 /* Enable client-side support for COAP observe */
 #define COAP_OBSERVE_CLIENT 1

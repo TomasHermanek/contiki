@@ -8,6 +8,7 @@
 #include "rest-engine.h"
 #include "symbols.h"
 #include "net/rpl/rpl.h"
+#include "heterogeneous-desider.h"
 
 
 #if PLATFORM_HAS_BUTTON
@@ -57,7 +58,7 @@ create_rpl_dag(uip_ipaddr_t *ipaddr)
   if(root_if != NULL) {
     rpl_dag_t *dag;
     uip_ipaddr_t prefix;
-    
+
     rpl_set_root(RPL_DEFAULT_INSTANCE, ipaddr);
     dag = rpl_get_any_dag();
     uip_ip6addr(&prefix, 0xaaaa, 0, 0, 0, 0, 0, 0, 0);
@@ -126,7 +127,7 @@ PROCESS_THREAD(coapv2_example_server, ev, data)
 uip_ipaddr_t *ipaddr;
 ipaddr = set_global_address();
 
-  create_rpl_dag(ipaddr);
+//  create_rpl_dag(ipaddr);
 #if PLATFORM_HAS_BUTTON
 PRINTF("mam ho\n");
 #endif
@@ -148,7 +149,7 @@ variable=100;
 printf("LL header: %u\n", UIP_LLH_LEN);
   rest_init_engine();
 //tomas
-  init_module();
+    init_module(MODE_NODE, ipaddr);
 //printf("LL header: %u\n", UIP_LLH_LEN);
   /*
    * Bind the resources to their Uri-Path.
