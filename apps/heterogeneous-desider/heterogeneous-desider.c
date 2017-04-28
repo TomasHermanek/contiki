@@ -51,7 +51,8 @@ const uint8_t MAX_FLOW_ID = 10;
 int sent_wifi;
 int sent_rpl;
 int wr_rate = 1;
-const int SIMULATED_BAT_CAPACITY = 5;
+const int SIMULATED_BAT_CAPACITY = 10;
+
 
 #ifdef HETEROGENEOUS_STATISTICS
 static struct statistics stats;
@@ -612,7 +613,7 @@ int heterogeneous_forwarding_callback() {
             return 1;
         } else if (flow->technology->type == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
             send_packet_wifi(&(UIP_IP_BUF->srcipaddr), &(UIP_IP_BUF->destipaddr), UIP_HTONS(UIP_IP_BUF->destport),
-                             UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4, uip_datalen());
+                             UIP_HTONS(UIP_IP_BUF->srcport), uip_appdata-4, (uint16_t)uip_datalen());
             leds_on(WIFI_FORWARD_LED);
 #ifdef HETEROGENEOUS_STATISTICS
             stats.wifi_forwarded_rpl++;
