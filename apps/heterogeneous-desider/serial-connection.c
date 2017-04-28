@@ -3,6 +3,8 @@
  * All rights reserved.
  */
 
+#define DEBUG 0
+#include "net/ip/uip-debug.h"
 
 #include "serial-connection.h"
 #include "heterogeneous-desider.h"
@@ -130,11 +132,9 @@ uint8_t parse_incoming_packet(char *data, int len, uint16_t *sport, uint16_t *dp
                 break;
             case 1:
                 string_ipv6_to_uip_ipaddr(token, sender_ip);
-                uip_debug_ipaddr_print(sender_ip);
                 break;
             case 2:
                 string_ipv6_to_uip_ipaddr(token, receiver_ip);
-                uip_debug_ipaddr_print(receiver_ip);
                 break;
             case 3:
                 *sport = strtol(token, &token, 10);
@@ -203,6 +203,7 @@ uint8_t parse_int_from_string(char *data, int *i, uint8_t start, uint8_t len) {
  * @return
  */
 int handle_commands(char *data, uint8_t len) {
+    PRINTF("Handling command %c\n", data[1]);
     if (data[1] == 'w') {
         tech_struct *rpl_tech = find_tech_by_type(RPL_TECHNOLOGY);
         metrics_struct *rpl_metrics = add_metrics(rpl_tech, DEFAULT_RPL_EN, DEFAULT_RPL_BW, DEFAULT_RPL_ETX);
@@ -233,24 +234,12 @@ int handle_commands(char *data, uint8_t len) {
         heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
 #endif
 #ifdef COAP_HETEROGENEOUS
-        printf("deliver packet with payload %s\n", payload);
-        uint8_t *converted = (uint8_t*) payload;
-        int i = 0;
-        for (i = 0; i <= payload_len; i++) {
-            printf("%02x",converted[i]);
-        }
-        printf("\n");
+        PRINTF("Delivering packet to COAP\n");
         coap_receive_params(payload_len, &payload, sport, sender_ip);
 #endif
     } else if (data[1] == 'f') {
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
-        printf("forward packet with payload %s\n", payload);
-//        uint8_t *converted = (uint8_t*) payload;
-//        int i = 0;
-//        for (i = 0; i <= payload_len; i++) {
-//            printf("%02x",converted[i]);
-//        }
-//        printf("\n");
+        PRINTF("Forwarding packet from WIFI using RPL\n");
         uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
         leds_on(RPL_FORWARD_LED);
         inc_sent_rpl();
@@ -269,6 +258,7 @@ int handle_commands(char *data, uint8_t len) {
  * @return
  */
 int handle_prints(char *data, int len) {
+    PRINTF("Handling print %c\n", data[1]);
     printf(PRINT_START_SYMBOL);
     if (data[1] == 'm') {
         print_metrics_table();
@@ -296,6 +286,7 @@ int handle_prints(char *data, int len) {
  * @return
  */
 int handle_requests(char *data, int len) {
+    PRINTF("Handling request %c\n", data[1]);
     if (data[1] == 'c') {
         print_src_ip();
         print_mode();
@@ -310,18 +301,6 @@ int handle_requests(char *data, int len) {
 
         question_id = parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, -1);
 
-//        flow_struct *flow = get_flow(&receiver_ip, &payload, payload_len);
-//        printf("arrived packet heterogeneous with data to forward %s\n", payload);
-//        printf("Packet length: %d\n", payload_len);
-
-//        uint8_t *converted = (uint8_t*) data;
-        printf("asking for forward with data %s\n", payload);
-        uint8_t *converted = (uint8_t*) payload;
-        int i = 0;
-        for (i = 0; i <= payload_len; i++) {
-            printf("%02x",converted[i]);
-        }
-        printf("\n");
         uint8_t k_en, k_bw, k_etx;
         fill_keys(&payload, payload_len, &k_en, &k_bw, &k_etx);
         flow_struct *flow = find_flow(&receiver_ip, k_en, k_bw, k_etx);
@@ -333,22 +312,22 @@ int handle_requests(char *data, int len) {
 
         if (flow) {
             if (flow->technology->type == RPL_TECHNOLOGY) {
+                PRINTF("Question id: %d -> forwarding using RPL\n", question_id);
                 uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
                 leds_on(RPL_FORWARD_LED);
-                printf("$p;%d;0;\n", question_id);        //  WARNING new line in this printf causes system reboot !
+                printf("$p;%d;0;\n", question_id);
                 inc_sent_rpl();
-                // add_from_flow(&sender_ip, flow);
+                add_from_flow(&sender_ip, flow, WIFI_TECHNOLOGY);
             }
             else {
                 leds_on(WIFI_FORWARD_LED);
-                printf("$p;%d;1;\n", question_id);        // WARNING new line in this printf causes system reboot !
+                PRINTF("Question id: %d -> forwarding using WIFI\n", question_id);
+                printf("$p;%d;1;\n", question_id);
                 flow->flags &= ~PND;
                 flow->flags |= CNF;
                 inc_wifi_sent();
-                // add_from_flow(&sender_ip, flow);
+                add_from_flow(&sender_ip, flow, WIFI_TECHNOLOGY);
             }
-            // todo setup flags
-            // todo add stats
         }
         return 1;
     }
@@ -364,6 +343,7 @@ int handle_requests(char *data, int len) {
  * @return
  */
 int handle_responses(char *data, int len) {
+    PRINTF("Handling response %c\n", data[1]);
     if (data[1] == 'p') {
         char *end_str, *token = strtok_r(data, ";", &end_str);
         int i = 0, num[3];
@@ -423,6 +403,7 @@ PROCESS(serial_connection, "Heterogenous serial handler");
 PROCESS_THREAD(serial_connection, ev, data)
 {
     PROCESS_BEGIN();
+    PRINTF("Starting serial line\n");
 
     for(;;) {
         PROCESS_YIELD();

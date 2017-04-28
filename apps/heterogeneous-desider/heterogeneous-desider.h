@@ -28,6 +28,14 @@
 #define DEFAULT_RPL_BW 20
 #define DEFAULT_RPL_ETX 10
 
+/**
+ * Set ALLOW_SIMULATE_BATTERY != 0 to allow simulating battery
+ */
+#define ALLOW_SIMULATE_BATTERY 0
+#if ALLOW_SIMULATE_BATTERY == 0
+#undef ALLOW_SIMULATE_BATTERY
+#endif
+
 extern int sent_wifi;
 extern int sent_rpl;
 extern int wr_rate;
