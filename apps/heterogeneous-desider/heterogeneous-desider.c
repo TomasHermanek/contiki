@@ -45,6 +45,11 @@ static uint8_t device_mode;
 static uint8_t flow_id = 0;
 const uint8_t MAX_FLOW_ID = 10;
 
+int sent_wifi;
+int sent_rpl;
+int wr_rate = 1;
+const int SIMULATED_BAT_CAPACITY = 5;
+
 #ifdef HETEROGENEOUS_STATISTICS
 static struct statistics stats;
 #endif
@@ -85,6 +90,23 @@ metrics_struct *find_metrics_by_tech(tech_struct *tech) {
     }
     return s;
 }
+
+/**
+ * Allows to find metrics by technology
+ *
+ * @param tech
+ * @return
+ */
+metrics_struct *find_metrics_by_tech_type(uint8_t type) {
+    struct metrics_struct *s;
+
+    for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
+        if (s->technology->type == type)
+            return s;
+    }
+    return s;
+}
+
 
 /**
  * Allows to find flow by dst IPv6 address and metric keys
@@ -163,6 +185,53 @@ void clear_oldest_flow() {
 }
 
 /**
+ * Based on bat capacity and sent packets over rpl and wifi, recalculates en value in metrics container
+ *
+ */
+void recalculate_metrics() {
+    struct metrics_struct *wifi_metrics = find_metrics_by_tech_type(WIFI_TECHNOLOGY);
+    struct metrics_struct *rpl_metrics = find_metrics_by_tech_type(RPL_TECHNOLOGY);
+
+    uint8_t w_en_increment = wr_rate + (((sent_wifi * wr_rate) + sent_rpl) / SIMULATED_BAT_CAPACITY);
+    uint8_t r_en_increment = 1 + w_en_increment / wr_rate;
+//    printf("W: %d\nR: %d\nIncrement: %d\n", sent_wifi, sent_rpl, w_en_increment);
+
+    if (wifi_metrics && w_en_increment > wifi_metrics->energy) {
+        if (w_en_increment >= 255)
+            printf("Unable to send using wifi, low energy\n");
+        else {
+            wifi_metrics->energy = w_en_increment;
+            clear_flows();
+        }
+    }
+
+    if (rpl_metrics && r_en_increment > rpl_metrics->energy) {
+        if (r_en_increment >= 255)
+            printf("Unable to send using RPL, low energy\n");
+        else {
+            rpl_metrics->energy = r_en_increment;
+            clear_flows();
+        }
+    }
+}
+
+/**
+ * Increments wifi counter and recalculates metrics
+ */
+void inc_wifi_sent() {
+    sent_wifi++;
+    recalculate_metrics();
+}
+
+/**
+ * Increments rpl counter and recalculates metrics
+ */
+void inc_sent_rpl() {
+    sent_rpl++;
+    recalculate_metrics();
+}
+
+/**
  * Function allows to add technology into technology table
  *
  * @param type
@@ -185,7 +254,7 @@ tech_struct *add_technology(uint8_t type)  {
 /**
  * Function allows to add metrics into Metrics table, which is linked to technology
  */
-void add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwidth, uint8_t etx) {
+metrics_struct *add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwidth, uint8_t etx) {
     struct metrics_struct *metrics = find_metrics_by_tech(technology);
 
     if (metrics == NULL) {
@@ -199,6 +268,7 @@ void add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwid
     metrics->energy = energy;
     metrics->bandwidth = bandwidth;
     metrics->etx = etx;
+    return metrics;
 }
 
 /**
@@ -248,6 +318,13 @@ void print_tech_table() {
     for(s = list_head(tech_list); s != NULL; s = list_item_next(s)) {
         printf("List element type %d\n", s->type);
     }
+}
+
+/**
+ * Prints counter used by dynamic energy alloc
+ */
+void print_energy_counter() {
+    printf("Sent by Wifi: %d\nSent using RPL: %d\nWR rate: %d\n", sent_wifi, sent_rpl, wr_rate);
 }
 
 /**
@@ -324,10 +401,14 @@ void fill_keys(const void *data,uint8_t len, uint8_t *en, uint8_t *bw, uint8_t *
     }
 #endif
 #ifdef COAP_HETEROGENEOUS
-    struct k_val values = coap_get_k_val(data, len);
-    *en = values.rem_energy;
-    *bw = values.bandwidth;
-    *etx = values.efx;
+//    struct k_val values = coap_get_k_val(data, len);
+//    *en = values.rem_energy;
+//    *bw = values.bandwidth;
+//    *etx = values.efx;
+//
+    *en = 1;
+    *bw = 10;
+    *etx = 0;
 #endif
 }
 
@@ -424,6 +505,7 @@ void send_packet_wifi(uip_ipaddr_t *from, const uip_ipaddr_t *to, uint16_t remot
         printf("%02x",converted[i]);
     }
     printf("\n");
+    inc_wifi_sent();
 }
 
 /**
@@ -455,6 +537,7 @@ int heterogenous_simple_udp_sendto(struct simple_udp_connection *c, const void *
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi
             simple_udp_sendto(c, data, datalen, to);
             leds_on(RPL_SEND_LED);
+            inc_sent_rpl();
 #ifdef HETEROGENEOUS_STATISTICS
             stats.rpl_sent++;
 #endif
@@ -494,6 +577,7 @@ int heterogeneous_forwarding_callback() {
         }
         if (flow->technology->type == RPL_TECHNOLOGY || !(flow->flags & CNF)) {    //dst tech is wifi or not approved wifi  # todo make sure that tech rpl exists!
             leds_on(RPL_FORWARD_LED);
+            inc_sent_rpl();
 #ifdef HETEROGENEOUS_STATISTICS
             stats.rpl_forwarded_rpl++;
 #endif
@@ -546,6 +630,7 @@ int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, uint8_t l
 //            simple_udp_sendto(c, data, datalen, to);
             uip_udp_packet_sendto(c, data, len, toaddr, toport);
             leds_on(RPL_SEND_LED);
+            inc_sent_rpl();
 #ifdef HETEROGENEOUS_STATISTICS
             stats.rpl_sent++;
 #endif
@@ -671,7 +756,7 @@ void init_module(uint8_t mode, const uip_ipaddr_t *ip) {
     print_src_ip();
     print_neighbours();
 
-    add_metrics(rpl_tech, 1, 40, 10);       // ToDO load values from config or from rpl
+    add_metrics(rpl_tech, DEFAULT_RPL_EN, DEFAULT_RPL_BW, DEFAULT_RPL_ETX);
     process_start(&serial_connection, NULL);
     process_start(&blinker, NULL);
 }

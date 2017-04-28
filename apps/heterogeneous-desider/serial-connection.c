@@ -204,6 +204,9 @@ uint8_t parse_int_from_string(char *data, int *i, uint8_t start, uint8_t len) {
  */
 int handle_commands(char *data, uint8_t len) {
     if (data[1] == 'w') {
+        tech_struct *rpl_tech = find_tech_by_type(RPL_TECHNOLOGY);
+        metrics_struct *rpl_metrics = add_metrics(rpl_tech, DEFAULT_RPL_EN, DEFAULT_RPL_BW, DEFAULT_RPL_ETX);
+
         tech_struct *wifi_tech = add_technology(WIFI_TECHNOLOGY);
         uint8_t i, en = 0, bw = 0, etx = 0;
 
@@ -219,6 +222,9 @@ int handle_commands(char *data, uint8_t len) {
             }
         }
         add_metrics(wifi_tech, en, bw, etx);
+        wr_rate = en/rpl_metrics->energy;
+        sent_wifi = 0;
+        sent_rpl = 0;
         clear_flows();
         return 1;
     } else if (data[1] == 'p') {
@@ -239,14 +245,15 @@ int handle_commands(char *data, uint8_t len) {
     } else if (data[1] == 'f') {
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
         printf("forward packet with payload %s\n", payload);
-        uint8_t *converted = (uint8_t*) payload;
-        int i = 0;
-        for (i = 0; i <= payload_len; i++) {
-            printf("%02x",converted[i]);
-        }
-        printf("\n");
+//        uint8_t *converted = (uint8_t*) payload;
+//        int i = 0;
+//        for (i = 0; i <= payload_len; i++) {
+//            printf("%02x",converted[i]);
+//        }
+//        printf("\n");
         uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
         leds_on(RPL_FORWARD_LED);
+        inc_sent_rpl();
     }
     return 0;
 }
@@ -267,6 +274,8 @@ int handle_prints(char *data, int len) {
         print_metrics_table();
     } else if (data[1] == 'f') {
         print_flow_table();
+    } else if (data[1] == 'e') {
+        print_energy_counter();
     }
 #ifdef HETEROGENEOUS_STATISTICS
     else if (data[1] == 's') {
@@ -327,6 +336,7 @@ int handle_requests(char *data, int len) {
                 uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
                 leds_on(RPL_FORWARD_LED);
                 printf("$p;%d;0;\n", question_id);        //  WARNING new line in this printf causes system reboot !
+                inc_sent_rpl();
                 // add_from_flow(&sender_ip, flow);
             }
             else {
@@ -334,6 +344,7 @@ int handle_requests(char *data, int len) {
                 printf("$p;%d;1;\n", question_id);        // WARNING new line in this printf causes system reboot !
                 flow->flags &= ~PND;
                 flow->flags |= CNF;
+                inc_wifi_sent();
                 // add_from_flow(&sender_ip, flow);
             }
             // todo setup flags
