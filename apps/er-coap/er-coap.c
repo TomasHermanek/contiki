@@ -1001,7 +1001,7 @@ struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len)
 {
   //printf("Entering coap_get_k_val\n");
   static coap_packet_t message[1];
-  uint8_t buffer[100]; //daj sem maximlanu velkost paketu
+  uint8_t buffer[REST_MAX_CHUNK_SIZE]; //daj sem maximlanu velkost paketu
   memcpy(buffer, data, data_len);
   int ii;
   struct k_val values;
