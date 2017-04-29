@@ -310,7 +310,6 @@ void fill_keys(const void *data,uint8_t len, uint8_t *en, uint8_t *bw, uint8_t *
 #ifdef SIMPLE_UDP_HETEROGENEOUS
     int type = (int) data;
     uint8_t val = strtol(data, &data, 10);
-
     if ((val % 4 == 0) || (val % 4 == 1)) {
 //    if ((val % 2 == 1)) {
         *en = 50;
@@ -526,7 +525,6 @@ int heterogeneous_forwarding_callback() {
  */
 int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, uint8_t len, const uip_ipaddr_t *toaddr, uint16_t toport) {
     printf("Sent using heterogeneous sent1\n");
-
     uint8_t k_en, k_bw, k_etx;
     fill_keys(data, len, &k_en, &k_bw, &k_etx);
     flow_struct *flow = find_flow(toaddr, k_en, k_bw, k_etx);

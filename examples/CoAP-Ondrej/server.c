@@ -9,6 +9,7 @@
 #include "symbols.h"
 #include "net/rpl/rpl.h"
 #include "heterogeneous-desider.h"
+#include "dev/zoul-sensors.h"
 
 
 #if PLATFORM_HAS_BUTTON
@@ -122,14 +123,23 @@ PROCESS_THREAD(coapv2_example_server, ev, data)
 //active = 0;
   
   PROCESS_BEGIN();
-
+  
   PROCESS_PAUSE();
+
 uip_ipaddr_t *ipaddr;
 ipaddr = set_global_address();
+ create_rpl_dag(ipaddr);
+
+#if PLATFORM_HAS_TEMPERATURE
+printf("mam teplomer!!\n");
+#else
+printf("nemam teplomer:(!!\n");
+#endif
 
 //  create_rpl_dag(ipaddr);
 #if PLATFORM_HAS_BUTTON
 PRINTF("mam ho\n");
+
 #endif
   //PRINTF("Erbium CoAPv2 Example Server\n");
 //process_start(&setVar, NULL);
@@ -147,8 +157,11 @@ PRINTF("mam ho\n");
 variable=100;
   /* Initialize the REST engine. */
 printf("LL header: %u\n", UIP_LLH_LEN);
+
   rest_init_engine();
+
 //tomas
+
     init_module(MODE_NODE, ipaddr);
 //printf("LL header: %u\n", UIP_LLH_LEN);
   /*
@@ -175,6 +188,9 @@ rest_activate_resource(&res_example, "test/example");
  // SENSORS_ACTIVATE(light_sensor);  
 #endif
 
+//SENSORS_ACTIVATE(button_sensor);
+//button_sensor.configure(BUTTON_SENSOR_CONFIG_TYPE_INTERVAL,
+                        //  BUTTON_PRESS_EVENT_INTERVAL);
 SENSORS_ACTIVATE(button_sensor);
 //print_local_addresses();
   /* Define application-specific events here. */
@@ -185,9 +201,12 @@ SENSORS_ACTIVATE(button_sensor);
 PROCESS_WAIT_EVENT();
 
 #if PLATFORM_HAS_BUTTON
-	
+	if((button_sensor.value(BUTTON_SENSOR_VALUE_TYPE_LEVEL) ==
+           BUTTON_SENSOR_PRESSED_LEVEL) && (ev == sensors_event) && (data == &button_sensor)) {
+          printf("Button pressed\n");
+       /* }
     if(ev == sensors_event && data == &button_sensor) {
-      PRINTF("*******BUTTON*******\n");
+      PRINTF("*******BUTTON*******\n");*/
 	variable=variable-20;
       //res_event.trigger();
 

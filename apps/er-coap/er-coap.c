@@ -433,25 +433,6 @@ coap_serialize_message(void *packet, uint8_t *buffer)
   return (option - buffer) + coap_pkt->payload_len; /* packet length */
 }
 /*---------------------------------------------------------------------------*/
-//ondrej dole docasne er-coap-transaction
-void
-coap_send_message_response(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
-                  uint16_t length)
-{
-  /* configure connection to reply to client */
-  uip_ipaddr_copy(&udp_conn->ripaddr, addr);
-  udp_conn->rport = port;
-//tomas
-   //heterogeneous_udp_sendto(udp_conn, data, length);
-  uip_udp_packet_send(udp_conn, data, length);
-
-  PRINTF("-sent UDP datagram (%u)-\n", length);
-
-  /* restore server socket to allow data from any node */
-  memset(&udp_conn->ripaddr, 0, sizeof(udp_conn->ripaddr));
-  udp_conn->rport = 0;
-}
-//ondrej hore
 
 void
 coap_send_message(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
@@ -461,14 +442,14 @@ coap_send_message(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
   uip_ipaddr_copy(&udp_conn->ripaddr, addr);
   udp_conn->rport = port;
 //tomas
-/*printf("pred odoslanim: \n");
+printf("pred odoslanim: \n");
     int i=0;
     for (i = 0; i < length; i++)
 {
   unsigned char c = ((char*)data)[i] ;
   printf ("%02x ", c) ;
 }
-printf("\n");*/
+printf("\n");
    heterogeneous_udp_sendto(udp_conn, data, length, addr, port);
   //uip_udp_packet_send(udp_conn, data, length);
 
@@ -1000,6 +981,14 @@ coap_set_metrics(void *packet, const int *metric, size_t metric_len)
 struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len)
 {
   //printf("Entering coap_get_k_val\n");
+printf("ako to vyzera u mna: \n");
+    int k=0;
+    for (k = 0; k < data_len; k++)
+{
+  unsigned char c = ((char*)data)[k] ;
+  printf ("%02x ", c) ;
+}
+printf("\n");
   static coap_packet_t message[1];
   uint8_t buffer[REST_MAX_CHUNK_SIZE]; //daj sem maximlanu velkost paketu
   memcpy(buffer, data, data_len);
