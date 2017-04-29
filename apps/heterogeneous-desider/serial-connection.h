@@ -14,6 +14,8 @@
 
 #define MAX_SIMULTANEOUS_QUESTIONS 3
 
+extern int forwarding_semafor;
+
 static char const* PRINT_START_SYMBOL = "<-\n";
 static char const* PRINT_END_SYMBOL  = "->\n";
 

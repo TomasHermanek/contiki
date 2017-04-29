@@ -25,7 +25,7 @@
 #define MODE_NODE 2
 
 #define DEFAULT_RPL_EN 1
-#define DEFAULT_RPL_BW 20
+#define DEFAULT_RPL_BW 40
 #define DEFAULT_RPL_ETX 10
 
 /**
@@ -80,7 +80,7 @@ typedef struct tech_struct {
  */
 typedef struct metrics_struct {
     struct metrics_struct *next;
-    struct tech_struct *technology;
+    uint8_t technology;
     uint8_t energy;
     uint8_t bandwidth;
     uint8_t etx;
@@ -128,6 +128,8 @@ tech_struct *add_technology(uint8_t type);
  * @param bandwidth
  * @param etx
  */
-metrics_struct * add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwidth, uint8_t etx);
+metrics_struct * add_metrics(uint8_t technology, uint8_t energy, uint8_t bandwidth, uint8_t etx);
+
+extern tech_struct *find_tech_by_type(uint8_t type);
 
 #endif //CONTIKI_HETEROGENEOUS_DESIDER_H
