@@ -24,6 +24,24 @@
 #define MODE_ROOT 1
 #define MODE_NODE 2
 
+#define DEFAULT_RPL_EN 1
+#define DEFAULT_RPL_BW 20
+#define DEFAULT_RPL_ETX 10
+
+/**
+ * Set ALLOW_SIMULATE_BATTERY != 0 to allow simulating battery
+ */
+#define ALLOW_SIMULATE_BATTERY 0
+#if ALLOW_SIMULATE_BATTERY == 0
+#undef ALLOW_SIMULATE_BATTERY
+#endif
+
+extern int sent_wifi;
+extern int sent_rpl;
+extern int wr_rate;
+
+extern const int SIMULATED_BAT_CAPACITY;
+
 /**
  * RED 0x01,GREEN 0x02,YELLOW 0x03,BLUE 0x04,PURPLE 0x05,AQUA 0x06,WHITE 0x07
  */
@@ -110,6 +128,6 @@ tech_struct *add_technology(uint8_t type);
  * @param bandwidth
  * @param etx
  */
-void add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwidth, uint8_t etx);
+metrics_struct * add_metrics(struct tech_struct *technology, uint8_t energy, uint8_t bandwidth, uint8_t etx);
 
 #endif //CONTIKI_HETEROGENEOUS_DESIDER_H

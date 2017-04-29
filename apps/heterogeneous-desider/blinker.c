@@ -3,15 +3,18 @@
  * All rights reserved.
  */
 
+#define DEBUG 0
+#include "net/ip/uip-debug.h"
+
 #include "contiki.h"
-
-
 
 PROCESS(blinker, "blinker");
 
 PROCESS_THREAD(blinker, ev, data)
 {
     PROCESS_BEGIN();
+    PRINTF("Starting blinker\n");
+
     char led_status;
     static struct etimer timer;
     etimer_set(&timer ,CLOCK_SECOND);
