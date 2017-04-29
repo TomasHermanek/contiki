@@ -68,6 +68,7 @@ static service_callback_t service_cbk = NULL;
 /*- Internal API ------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+
 /*OPTION_METRIC: */
 int
 coap_receive_params(uint16_t len, void *data, uint16_t srcport, uip_ip6addr_t srcipaddr)
