@@ -28,6 +28,15 @@ static short payload_len;
 static uip_ipaddr_t sender_ip, receiver_ip;
 struct simple_udp_connection *c = NULL;
 
+int forwarding_semafor = 0;
+
+void clear_buff() {
+    payload_len = 0;
+    sport = 0;
+    dport = 0;
+    payload[0] = 0;
+}
+
 /**
  * Converts character to real hexadecimal value
  *
@@ -205,8 +214,7 @@ uint8_t parse_int_from_string(char *data, int *i, uint8_t start, uint8_t len) {
 int handle_commands(char *data, uint8_t len) {
     PRINTF("Handling command %c\n", data[1]);
     if (data[1] == 'w') {
-        tech_struct *rpl_tech = find_tech_by_type(RPL_TECHNOLOGY);
-        metrics_struct *rpl_metrics = add_metrics(rpl_tech, DEFAULT_RPL_EN, DEFAULT_RPL_BW, DEFAULT_RPL_ETX);
+        metrics_struct *rpl_metrics = add_metrics(RPL_TECHNOLOGY, DEFAULT_RPL_EN, DEFAULT_RPL_BW, DEFAULT_RPL_ETX);
 
         tech_struct *wifi_tech = add_technology(WIFI_TECHNOLOGY);
         uint8_t i, en = 0, bw = 0, etx = 0;
@@ -222,24 +230,41 @@ int handle_commands(char *data, uint8_t len) {
                 etx = parse_int_from_string(data, &i, i+1, len);
             }
         }
-        add_metrics(wifi_tech, en, bw, etx);
+        add_metrics(WIFI_TECHNOLOGY, en, bw, etx);
         wr_rate = en/rpl_metrics->energy;
         sent_wifi = 0;
         sent_rpl = 0;
-        clear_flows();
+//        clear_flows();
         return 1;
-    } else if (data[1] == 'p') {
+    } else if (data[1] == 'p') {    // DELIVERY PACKET FROM WIFI PART
+//        payload_len = 0;
+        clear_buff();
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
 #ifdef SIMPLE_UDP_HETEROGENEOUS
         heterogenous_udp_callback(c, &sender_ip, sport, &receiver_ip, dport, payload, payload_len);
 #endif
 #ifdef COAP_HETEROGENEOUS
-        PRINTF("Delivering packet to COAP\n");
+        PRINTF("Delivering packet to COAP from Wifi\n");
         coap_receive_params(payload_len, &payload, sport, sender_ip);
 #endif
-    } else if (data[1] == 'f') {
+    } else if (data[1] == 'f') {        // Forward Packet part todo debug + add form flow
+        clear_buff();
         parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, 0);
-        PRINTF("Forwarding packet from WIFI using RPL\n");
+
+        uint8_t k_en, k_bw, k_etx;
+        fill_keys(&payload, payload_len, &k_en, &k_bw, &k_etx);
+
+        flow_struct *flow = find_flow(&receiver_ip, k_en, k_bw, k_etx);
+
+        if (!flow) {
+            PRINTF("F: Flow not found, creating new one\n");
+            flow_struct *flow = add_flow(&receiver_ip, RPL_TECHNOLOGY, k_en, k_bw, k_etx);
+        }
+
+        PRINTF("Forwarding packet from WIFI using RPL: ");
+        PRINT6ADDR(&receiver_ip);
+        PRINTF("\n");
+
         uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
         leds_on(RPL_FORWARD_LED);
         inc_sent_rpl();
@@ -298,38 +323,54 @@ int handle_requests(char *data, int len) {
     }
     else if (data[1] == 'p') {
         int question_id;
+        clear_buff();
 
         question_id = parse_incoming_packet(data, len, &sport, &dport, c, &payload, &payload_len, &sender_ip, &receiver_ip, -1);
-
         uint8_t k_en, k_bw, k_etx;
         fill_keys(&payload, payload_len, &k_en, &k_bw, &k_etx);
         flow_struct *flow = find_flow(&receiver_ip, k_en, k_bw, k_etx);
 
+        PRINTF("W: forwarding callback called for packet from: ");
+        PRINT6ADDR(&sender_ip);
+        PRINTF(" to: ");
+        PRINT6ADDR(&receiver_ip);
+        PRINTF(" data: %s\n", payload);
+
         if (!flow) {
-            tech_struct *dst_technology = select_technology(k_en, k_bw, k_etx);
+            PRINTF("W: Flow not found, creating new one\n");
+            uint8_t dst_technology = select_technology(k_en, k_bw, k_etx);
             flow = add_flow(&receiver_ip, dst_technology, k_en, k_bw, k_etx);
         }
 
         if (flow) {
-            if (flow->technology->type == RPL_TECHNOLOGY) {
-                PRINTF("Question id: %d -> forwarding using RPL\n", question_id);
+            PRINTF("W: flow flags: %d\n", flow->flags);
+            if (flow->technology == RPL_TECHNOLOGY) {
+                printf("$p;%d;0;\n", question_id);
+                forwarding_semafor = 1;
                 uip_udp_packet_forward(sender_ip, receiver_ip, sport, dport, &payload, payload_len);
                 leds_on(RPL_FORWARD_LED);
-                printf("$p;%d;0;\n", question_id);
-                inc_sent_rpl();
-                add_from_flow(&sender_ip, flow, WIFI_TECHNOLOGY);
-            }
-            else {
-                leds_on(WIFI_FORWARD_LED);
-                PRINTF("Question id: %d -> forwarding using WIFI\n", question_id);
+
+            } else {
                 printf("$p;%d;1;\n", question_id);
+                leds_on(WIFI_FORWARD_LED);
                 flow->flags &= ~PND;
                 flow->flags |= CNF;
-                inc_wifi_sent();
-                add_from_flow(&sender_ip, flow, WIFI_TECHNOLOGY);
             }
         }
-        return 1;
+
+        flow_struct *src_flow = find_flow(&sender_ip, k_en, k_bw, k_etx);         // source flow
+
+        if (!src_flow) {
+            PRINTF("W: Creating new src flow\n");
+            src_flow = add_flow(&sender_ip, WIFI_TECHNOLOGY, k_en, k_bw, k_etx);
+        }
+        else if (src_flow->technology != WIFI_TECHNOLOGY) {
+            PRINTF("W: Marking src flow as WIFI\n");
+            src_flow->technology = WIFI_TECHNOLOGY;
+        }
+        src_flow->flags &= ~PND;
+        src_flow->flags |= CNF;
+
     }
     return 0;
 }
