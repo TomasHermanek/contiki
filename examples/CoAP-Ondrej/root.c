@@ -5,15 +5,10 @@
 #include <string.h>
 #include "contiki.h"
 #include "contiki-net.h"
-#include "rest-engine.h"
 #include "symbols.h"
 #include "net/rpl/rpl.h"
 #include "heterogeneous-desider.h"
 
-
-#if PLATFORM_HAS_BUTTON
-#include "dev/button-sensor.h"
-#endif
 
 #define DEBUG 0
 #if DEBUG
@@ -26,28 +21,6 @@
 #define PRINT6ADDR(addr)
 #define PRINTLLADDR(addr)
 #endif
-
-
-extern resource_t
-  //res_hello,
-  //res_mirror,
-  //res_chunks,
-  //res_separate,
-  //res_push,
-  //res_event,
-  //res_sub,
-  //res_b1_sep_b2;
-  res_example;
-#if PLATFORM_HAS_LEDS
-//extern resource_t res_leds/*, res_toggle*/;
-#endif
-#if PLATFORM_HAS_LIGHT
-//#include "dev/light-sensor.h"
-//extern resource_t res_light;
-#endif
-
-
-extern int variable=100;
 
 static void
 create_rpl_dag(uip_ipaddr_t *ipaddr)
@@ -69,25 +42,6 @@ create_rpl_dag(uip_ipaddr_t *ipaddr)
   }
 }
 
-static void
-print_local_addresses(void)
-{
-  int i;
-  uint8_t state;
-
-  PRINTF("Server IPv6 addresses: ");
-  for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
-    state = uip_ds6_if.addr_list[i].state;
-    if(state == ADDR_TENTATIVE || state == ADDR_PREFERRED) {
-      PRINT6ADDR(&uip_ds6_if.addr_list[i].ipaddr);
-      PRINTF("\n");
-      /* hack to make address "final" */
-      if(state == ADDR_TENTATIVE) {
-        uip_ds6_if.addr_list[i].state = ADDR_PREFERRED;
-      }
-    }
-  }
-}
 
 static uip_ipaddr_t *
 set_global_address(void)
@@ -113,88 +67,16 @@ set_global_address(void)
   return &ipaddr;
 }
 
-PROCESS(coapv2_example_server, "Erbium CoAPv2 Example Server");
-AUTOSTART_PROCESSES(&coapv2_example_server);
+PROCESS(example_root, "Example RPL Root");
+AUTOSTART_PROCESSES(&example_root);
 
-PROCESS_THREAD(coapv2_example_server, ev, data)
-{
-//printf("LL header: %u\n", UIP_LLH_LEN);
-//active = 0;
-  
+PROCESS_THREAD(example_root, ev, data)
+{  
   PROCESS_BEGIN();
-
   PROCESS_PAUSE();
-uip_ipaddr_t *ipaddr;
-ipaddr = set_global_address();
-
+  uip_ipaddr_t *ipaddr;
+  ipaddr = set_global_address();
   create_rpl_dag(ipaddr);
-#if PLATFORM_HAS_BUTTON
-PRINTF("mam ho\n");
-#endif
-  //PRINTF("Erbium CoAPv2 Example Server\n");
-//process_start(&setVar, NULL);
-#ifdef RF_CHANNEL
-  PRINTF("RF channel: %u\n", RF_CHANNEL);
-#endif
-#ifdef IEEE802154_PANID
-  PRINTF("PAN ID: 0x%04X\n", IEEE802154_PANID);
-#endif
-  PRINTF("uIP buffer: %u\n", UIP_BUFSIZE);
-  PRINTF("LL header: %u\n", UIP_LLH_LEN);
-  //PRINTF("IP+UDP header: %u\n", UIP_IPUDPH_LEN);
-  printf("REST max chunk: %u\n", REST_MAX_CHUNK_SIZE);
-//set_variable(100);
-variable=100;
-  /* Initialize the REST engine. */
-printf("LL header: %u\n", UIP_LLH_LEN);
-//  rest_init_engine();
-//tomas
-init_module(MODE_ROOT, ipaddr);
-//printf("LL header: %u\n", UIP_LLH_LEN);
-  /*
-   * Bind the resources to their Uri-Path.
-   * WARNING: Activating twice only means alternate path, not two instances!
-   * All static variables are the same for each URI path.
-   */
-
-rest_activate_resource(&res_example, "test/example");
- // rest_activate_resource(&res_hello, "test/hello");
-/*  rest_activate_resource(&res_mirror, "debug/mirror"); */
-/*  rest_activate_resource(&res_chunks, "test/chunks"); */
-/*  rest_activate_resource(&res_separate, "test/separate"); */
-  //rest_activate_resource(&res_push, "/test/push");
-/*  rest_activate_resource(&res_event, "sensors/button"); */
-/*  rest_activate_resource(&res_sub, "test/sub"); */
-/*  rest_activate_resource(&res_b1_sep_b2, "test/b1sepb2"); */
-#if PLATFORM_HAS_LEDS
-/*  rest_activate_resource(&res_leds, "actuators/leds"); */
- //rest_activate_resource(&res_toggle, "actuators/toggle");
-#endif
-#if PLATFORM_HAS_LIGHT
- // rest_activate_resource(&res_light, "sensors/light"); 
- // SENSORS_ACTIVATE(light_sensor);  
-#endif
-
-SENSORS_ACTIVATE(button_sensor);
-//print_local_addresses();
-  /* Define application-specific events here. */
-  while(1) {
-
-//PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event && data == &button_sensor);
-//PROCESS_YIELD();
-PROCESS_WAIT_EVENT();
-
-#if PLATFORM_HAS_BUTTON
-	
-    if(ev == sensors_event && data == &button_sensor) {
-      PRINTF("*******BUTTON*******\n");
-	variable=variable-20;
-      //res_event.trigger();
-
-      //res_separate.resume();
-    }
-#endif 
-  }  
-
+  init_module(MODE_ROOT, ipaddr);
   PROCESS_END();
 }

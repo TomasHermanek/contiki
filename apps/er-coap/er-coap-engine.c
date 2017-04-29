@@ -35,6 +35,9 @@
  * \author
  *      Matthias Kovatsch <kovatsch@inf.ethz.ch>
  */
+/**
+* edited by Ondrej
+*/
 
 #include "sys/cc.h"
 #include <stdio.h>
@@ -64,22 +67,22 @@ static service_callback_t service_cbk = NULL;
 /*---------------------------------------------------------------------------*/
 /*- Internal API ------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-//tomas
 
+
+/*OPTION_METRIC: */
 int
 coap_receive_params(uint16_t len, void *data, uint16_t srcport, uip_ip6addr_t srcipaddr)
 {
   erbium_status_code = NO_ERROR;
-
-  printf("handle_incoming_data() from tomas: received len=%u message: %s\n",
-         len), data;
+  PRINTF("handle_incoming_data() from heterogeneous lowerlayer: received len=%u\n",len);
       int i=0;
-    for (i = 0; i < len; i++)
-{
-  unsigned char c = ((char*)data)[i] ;
-  printf ("%02x ", c) ;
-}
-printf("\n");
+  PRINTF("Data: ");
+  for (i = 0; i < len; i++)
+  {
+    unsigned char c = ((char*)data)[i] ;
+    PRINTF ("%02x ", c) ;
+  }
+  PRINTF("\n");
 
   /* static declaration reduces stack peaks and program code size */
   static coap_packet_t message[1]; /* this way the packet can be treated as pointer as usual */
@@ -131,17 +134,14 @@ printf("\n");
             coap_set_token(response, message->token, message->token_len);
             /* get offset for blockwise transfers */
           }
-//ondrej dole
+/*---------------------------OPTION_METRIC: Implementation starts here-------------------------------------*/
           if (IS_OPTION(message, COAP_OPTION_METRIC)){
-	     printf("Preparing response metrics1\n");
-		response->metric_len = message->metric_len;;
-  		memcpy(response->metric, message->metric, response->metric_len);
-  		SET_OPTION(response, COAP_OPTION_METRIC);
-
-            //coap_metrics_deserialization(&message->metric);
-
+	    PRINTF("Preparing response metrics\n");
+	    response->metric_len = message->metric_len;;
+  	    memcpy(response->metric, message->metric, response->metric_len);
+  	    SET_OPTION(response, COAP_OPTION_METRIC);
           }
-//ondrej hore
+/*---------------------------OPTION_METRIC: Implementation ends here-------------------------------------*/
           if(coap_get_header_block2
                (message, &block_num, NULL, &block_size, &block_offset)) {
             PRINTF("Blockwise: block request %lu (%u/%u) @ %lu bytes\n",
@@ -319,14 +319,6 @@ printf("\n");
     }
   }
 
-/*#define PRINT6ADDRES(addr) printf("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])*/
-
-/*uip_ipaddr_t server_ip;
-uip_ip6addr(&server_ip, 0xabcd, 0, 0, 0, 0xc30c, 0x0001, 0x0002, 0x0003); 
-  PRINT6ADDRES(&UIP_IP_BUF->srcipaddr);
-  UIP_IP_BUF->srcipaddr=server_ip;
-  PRINT6ADDRES(&UIP_IP_BUF->srcipaddr);*/
-  /* if(new data) */
   return erbium_status_code;
 }
 
@@ -389,14 +381,14 @@ coap_receive(void)
             coap_set_token(response, message->token, message->token_len);
             /* get offset for blockwise transfers */
           }
-//ondrej dole
+/*---------------------------OPTION_METRIC: Implementation starts here-------------------------------------*/
           if (IS_OPTION(message, COAP_OPTION_METRIC)){
-	     printf("Preparing response metrics\n");
-		response->metric_len = message->metric_len;
-  		memcpy(response->metric, message->metric, response->metric_len);
-  		SET_OPTION(response, COAP_OPTION_METRIC);
+	     PRINTF("Preparing response metrics\n");
+	     response->metric_len = message->metric_len;
+  	     memcpy(response->metric, message->metric, response->metric_len);
+  	     SET_OPTION(response, COAP_OPTION_METRIC);
           }
-//ondrej hore
+/*---------------------------OPTION_METRIC: Implementation ends here-------------------------------------*/
           if(coap_get_header_block2
                (message, &block_num, NULL, &block_size, &block_offset)) {
             PRINTF("Blockwise: block request %lu (%u/%u) @ %lu bytes\n",
@@ -624,7 +616,6 @@ PROCESS_THREAD(coap_engine, ev, data)
 
     if(ev == tcpip_event) {
       coap_receive();
-//coap_receive_params(uip_datalen(), uip_appdata, UIP_UDP_BUF->srcport, UIP_IP_BUF->srcipaddr);
     } else if(ev == PROCESS_EVENT_TIMER) {
       /* retransmissions are handled here */
       coap_check_transactions();
@@ -639,7 +630,7 @@ PROCESS_THREAD(coap_engine, ev, data)
 void
 coap_blocking_request_callback(void *callback_data, void *response)
 {
-printf("zavolana callback funkcia\n");
+PRINTF("Callback function\n");
   struct request_state_t *state = (struct request_state_t *)callback_data;
 
   state->response = (coap_packet_t *)response;
@@ -684,9 +675,7 @@ PT_THREAD(coap_blocking_request
 
       coap_send_transaction(state->transaction);
       PRINTF("Requested #%lu (MID %u)\n", state->block_num, request->mid);
-//printf("pred yield\n");
       PT_YIELD_UNTIL(&state->pt, ev == PROCESS_EVENT_POLL);
-//printf("za yield\n");
       if(!state->response) {
         PRINTF("Server not responding\n");
         PT_EXIT(&state->pt);
@@ -737,9 +726,6 @@ const struct rest_implementation coap_rest_implementation = {
   coap_get_header_if_none_match,
   coap_get_header_uri_host,
   coap_set_header_location_path,
-
- /* coap_get_metrics,
-  coap_set_metrics,*/
 
   coap_get_payload,
   coap_set_payload,

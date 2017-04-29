@@ -512,14 +512,14 @@ void fill_keys(const void *data,uint8_t len, uint8_t *en, uint8_t *bw, uint8_t *
     }
 #endif
 #ifdef COAP_HETEROGENEOUS
-//    struct k_val values = coap_get_k_val(data, len);
-//    *en = values.rem_energy;
-//    *bw = values.bandwidth;
-//    *etx = values.efx;
+    struct k_val values = coap_get_k_val(data, len);
+    *en = values.rem_energy;
+    *bw = values.bandwidth;
+   *etx = values.efx;
 //
-    *en = 1;
-    *bw = 10;
-    *etx = 0;
+    //*en = 1;
+   // *bw = 10;
+    //*etx = 0;
 #endif
 }
 

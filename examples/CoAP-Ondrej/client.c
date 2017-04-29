@@ -49,29 +49,29 @@
 #include "dev/button-sensor.h"
 #include "symbols.h"
 #include "heterogeneous-desider.h"
+#include "uip-debug.h"
 
 #define DEBUG 0
 #if DEBUG
 #include <stdio.h>
-#define PRINTF(...) printf(__VA_ARGS__)
-#define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
-#define PRINTLLADDR(lladdr) PRINTF("[%02x:%02x:%02x:%02x:%02x:%02x]", (lladdr)->addr[0], (lladdr)->addr[1], (lladdr)->addr[2], (lladdr)->addr[3], (lladdr)->addr[4], (lladdr)->addr[5])
+#define PRINTFDEBUG(...) printf(__VA_ARGS__)
+#define PRINT6ADDRDEBUG(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
+#define PRINTLLADDRDEBUG(lladdr) PRINTF("[%02x:%02x:%02x:%02x:%02x:%02x]", (lladdr)->addr[0], (lladdr)->addr[1], (lladdr)->addr[2], (lladdr)->addr[3], (lladdr)->addr[4], (lladdr)->addr[5])
 #else
-#define PRINTF(...)
-#define PRINT6ADDR(addr)
-#define PRINTLLADDR(addr)
+#define PRINTFDEBUG(...)
+#define PRINT6ADDRDEBUG(addr)
+#define PRINTLLADDRDEBUG(addr)
 #endif
 
+/*Ipv6 address of the server*/
 //#define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfe80, 0, 0, 0, 0xc30c, 0x0000, 0x0000, 0x0002) 
 #define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xaaaa, 0, 0, 0, 0x0212, 0x4b00, 0x060d, 0xb25c)
 
 #define LOCAL_PORT      UIP_HTONS(COAP_DEFAULT_PORT + 1)
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
+/*Interval of sending requests to server*/
 #define TOGGLE_INTERVAL 5
-
-
-#define PRINT6ADDR(addr) printf("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
 
 PROCESS(coapv2_example_client, "Erbium CoAPv2 Example Client");
 AUTOSTART_PROCESSES(&coapv2_example_client);
@@ -79,30 +79,60 @@ AUTOSTART_PROCESSES(&coapv2_example_client);
 uip_ipaddr_t server_ipaddr;
 static struct etimer et;
 
-//variable=200;
+/*Resource URLs*/
 char *resource_url = "/test/example";
 char *resource_url2 = "/test/example2";
 char *resource_url3 = "/test/example3";
 char *resource_url4 = "/test/example4";
-list_t connection_list=NULL;
 
-#define NUMBER_OF_URLS 4
-char *service_urls[NUMBER_OF_URLS] = { ".well-known/core", "/actuators/toggle", "battery/", "error/in//path" };
-#if PLATFORM_HAS_BUTTON
-static int uri_switch = 0;
-#endif
-
-
+/**
+ * 
+ * Handler function used for handling new responses
+ *
+ */
 void
-client_chunk_handler(void *response)
+response_handler(void *response)
 {
   const uint8_t *chunk;
-
+  int temp=0;
+  char str[10];
   int len = coap_get_payload(response, &chunk);
-
-  printf("|%.*s", len, (char *)chunk);
+  if(len>10)
+  {
+    printf("Too long for number\n");
+    return;
+  }
+  if (((char *)chunk)[0]=='0')
+  {
+    temp=0;
+  }
+  else
+  {
+    sprintf(str,"%.*s", len, (char *)chunk);
+    temp=atoi(str);
+    if (temp==0)
+      printf("It is not integer\n");
+    else
+    {
+      printf("Temperature at server is: %d\n",temp);
+      if(temp>17) 
+        if(coap_change_profile_priority(resource_url, PROFILE_LOWPOWER, &server_ipaddr, 1)==0)
+          printf("Profile Changed\n");
+        else
+          printf("Profile cannot be changed\n");
+    }
+  }
+  
+//test
+  //printf("|%.*s", len, (char *)chunk);
+  //printf("\n");
 }
 
+/**
+ * 
+ * Copied function -set global ipv6 address and print all ipv6 addresses used by node.
+ *
+ */
 static uip_ipaddr_t *
 set_global_address(void)
 {
@@ -114,7 +144,7 @@ set_global_address(void)
   uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
   uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
-  printf("IPv6 addresses: ");
+  PRINTFDEBUG("IPv6 addresses: ");
   for(i = 0; i < UIP_DS6_ADDR_NB; i++) {
     state = uip_ds6_if.addr_list[i].state;
     if(uip_ds6_if.addr_list[i].isused &&
@@ -136,50 +166,55 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
   uip_ipaddr_t *ipaddr;
   ipaddr = set_global_address();
 
+  /*Set ip adresses of server to server_ipaddr*/
   SERVER_NODE(&server_ipaddr);
 
+  /* Initialize the REST engine. */
   coap_init_engine();
-//tomas
+
+  /*Initialize the lower layer*/
   init_module(MODE_NODE, ipaddr);
 
+  /*Set timer*/
   etimer_set(&et, TOGGLE_INTERVAL * CLOCK_SECOND);
 
-#if PLATFORM_HAS_BUTTON
   SENSORS_ACTIVATE(button_sensor);
-  //printf("Press a button to request higher...");
-#endif
-SENSORS_ACTIVATE(button_sensor);
-      coap_add_profile(resource_url, PROFILE_LOWPOWER, PROFILE_SECURITY, 0, server_ipaddr/*, connection_list*/);
-     coap_add_profile(resource_url2, PROFILE_RELIABILITY, 0, 1, server_ipaddr/*, connection_list*/);
-      coap_add_profile(resource_url3, PROFILE_SECURITY, PROFILE_SPEED, 1, server_ipaddr/*, connection_list*/);
+  
+  /*
+   * Example of adding profile to enhanced CoAP
+   * Every unique entry (unique combination of resource URL and server IP address) is saved in profiles
+   * Possible profiles: PROFILE_LOWPOWER, PROFILE_SECURITY, PROFILE_RELIABILITY, PROFILE_SPEED, PROFILE_MULTIMEDIA
+   * 4th argument: if 1 then profiles are equal, otherwise first profile has higher priority
+   */    
+  coap_add_profile(resource_url, PROFILE_LOWPOWER, PROFILE_SECURITY, 0, server_ipaddr);
+  coap_add_profile(resource_url2, PROFILE_RELIABILITY, 0, 1, server_ipaddr);
+  coap_add_profile(resource_url3, PROFILE_SECURITY, PROFILE_SPEED, 1, server_ipaddr);
      
   while(1) {
     PROCESS_YIELD();
     if(etimer_expired(&et)) {
       printf("\n--Timer started--\n");
-  
+      
       coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
 
       coap_set_header_uri_path(request, resource_url);
-      //coap_add_profile(resource_url4, PROFILE_MULTIMEDIA, PROFILE_SPEED, 0, server_ipaddr/*, connection_list*/);
+      
+      /*Choose profile for request*/
       coap_set_profile(resource_url, request, &server_ipaddr);
 
       const char msg[] = "Example";
 
       coap_set_payload(request, (uint8_t *)msg, sizeof(msg) - 1);
-      //PRINT6ADDR(&server_ipaddr);
-      PRINTF(" : %u\n", UIP_HTONS(REMOTE_PORT));
+
 
       COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, request,
-                            client_chunk_handler);
+                            response_handler);
 
       etimer_reset(&et);
 
 #if PLATFORM_HAS_BUTTON
-    } else if(ev == sensors_event && data == &button_sensor) {
+    } else if((button_sensor.value(BUTTON_SENSOR_VALUE_TYPE_LEVEL) == BUTTON_SENSOR_PRESSED_LEVEL) && (ev == sensors_event) && (data == &button_sensor)) {
        coap_change_profile_priority(resource_url, PROFILE_LOWPOWER, &server_ipaddr, 0); //1==increase, 0==decrease
-     //setHigherPriorities()
-	//setLowerPriorities()
 
 #endif
     }

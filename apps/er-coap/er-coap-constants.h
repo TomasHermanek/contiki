@@ -50,7 +50,7 @@
 #define COAP_TOKEN_LEN                       8  /* The maximum number of bytes for the Token */
 #define COAP_ETAG_LEN                        8  /* The maximum number of bytes for the ETag */
 
-//ondrej
+/*OPTION_METRIC: Max bytes of option*/
 #define COAP_METRIC_LEN 		14
 
 #define COAP_HEADER_VERSION_MASK             0xC0
@@ -79,8 +79,8 @@ typedef enum {
   COAP_DELETE
 } coap_method_t;
 
-//ondrej dole
-/*CoAP Metric Profiles*/
+
+/*OPTION_METRIC: Deserialization of option metric CoAP Metric Profiles*/
 typedef enum {
   PROFILE_LOWPOWER = 1,               
   PROFILE_SPEED = 2,                
@@ -89,8 +89,8 @@ typedef enum {
   PROFILE_SECURITY = 5                
 } coap_metric_profile;
 
+/*OPTION_METRIC: max count of stored profiles*/
 #define MAX_COUNT 10
-//ondrej hore
 
 
 /* CoAP response codes */
@@ -152,8 +152,8 @@ typedef enum {
   COAP_OPTION_PROXY_URI = 35,   /* 1-1034 B */
   COAP_OPTION_PROXY_SCHEME = 39,        /* 1-255 B */
   COAP_OPTION_SIZE1 = 60,       /* 0-4 B */
-//ondrej
-  COAP_OPTION_METRIC=61 /*0-16*/
+/*OPTION_METRIC: option number*/
+  COAP_OPTION_METRIC=62 /*0-16*/
 } coap_option_t;
 
 /* CoAP Content-Formats */
