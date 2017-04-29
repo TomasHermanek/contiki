@@ -259,9 +259,9 @@ typedef struct connection_profiles {
     uint8_t efx;
     uint8_t link_load;
     uint8_t security;
-};//connection_profiles;
+}connection_profiles;
 
-  struct k_val {
+typedef struct k_val {
     uint8_t bandwidth;
     uint8_t rem_energy;
     uint8_t etx;
@@ -271,16 +271,16 @@ typedef struct connection_profiles {
     uint8_t efx;
     uint8_t link_load;
     uint8_t security;
-  };
+  }k_val;
 struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len);
 struct k_val coap_metrics_deserialization(uint8_t *metrics); 
 void coap_metrics_serialization(void *packet, struct connection_profiles *c);
 void coap_set_profile(const char *resource_url,void *packet, uip_ipaddr_t *server_ipaddr);
-void coap_change_profile_priority(const char *resource_url, unsigned int profile, uip_ipaddr_t *server_ipaddr, uint8_t direction);
+int coap_change_profile_priority(const char *resource_url, unsigned int profile, uip_ipaddr_t *server_ipaddr, uint8_t direction);
 void coap_add_profile(const char *resource_url, unsigned int profile1, unsigned int profile2, int equal, uip_ipaddr_t server_ipaddr);     
 void pair_profile_metric(unsigned int profile1, unsigned int profile2, int equal, struct connection_profiles *c);
 int set_pointer_to_metric(unsigned int profile, struct connection_profiles *c, uint8_t **p1, uint8_t **p2);
-void change_profile_metric(unsigned int profile, struct connection_profiles *c, uint8_t direction);
+int change_profile_metric(unsigned int profile, struct connection_profiles *c, uint8_t direction);
 int change_one_profile(unsigned int profile, struct connection_profiles *c, int value);
 void set_one_profile(unsigned int profile, struct connection_profiles *c, int value);
 
