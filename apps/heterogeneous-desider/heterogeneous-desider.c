@@ -51,7 +51,7 @@ const uint8_t MAX_FLOW_ID = 10;
 int sent_wifi;
 int sent_rpl;
 int wr_rate = 1;
-const int SIMULATED_BAT_CAPACITY = 2;
+const int SIMULATED_BAT_CAPACITY = 7;
 
 
 #ifdef HETEROGENEOUS_STATISTICS
@@ -519,7 +519,7 @@ void fill_keys(const void *data,uint8_t len, uint8_t *en, uint8_t *bw, uint8_t *
 //    *etx = values.efx;
 //
     *en = 1;
-    *bw = 10;
+    *bw = 5;
     *etx = 0;
 #endif
 }
@@ -742,6 +742,7 @@ int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, uint8_t l
         } else if (flow->technology == WIFI_TECHNOLOGY && (flow->flags & CNF == 1)) {
             send_packet_wifi(&src_ip, toaddr, UIP_HTONS(c->rport), UIP_HTONS(c->lport), data, len);
             leds_on(WIFI_SEND_LED);
+            inc_wifi_sent();
 #ifdef HETEROGENEOUS_STATISTICS
             stats.wifi_sent++;
 #endif
