@@ -242,14 +242,14 @@ int coap_set_header_uri_path(void *packet, const char *path);
 //ondrej dole
 
 int coap_get_metrics(void *packet, const int **metric);
-int coap_set_metrics(void *packet, const int *metric, size_t metric_len);
+int coap_set_metrics(void *packet, const uint8_t *metric, size_t metric_len);
 
 typedef struct connection_profiles {
     struct connection_profiles *next;
     uip_ipaddr_t server_ipaddr;   
     char *resource_url;
-    uint8_t profile1;
-    uint8_t profile2;
+    int profile1;
+    int profile2;
     uint8_t bandwidth;
     uint8_t rem_energy;
     uint8_t etx;

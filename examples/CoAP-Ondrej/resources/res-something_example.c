@@ -21,7 +21,7 @@ res_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferr
 {	
   printf("Entering example resource\n"); 
   int temperature = cc2538_temp_sensor.value(CC2538_SENSORS_VALUE_TYPE_CONVERTED);
-  printf("Temperature: %d mC", temperature);
+  printf("Temperature: %d mC\n", temperature);
   temperature=temperature/1000;
   const char *len = NULL;
   //char number[5]="123";

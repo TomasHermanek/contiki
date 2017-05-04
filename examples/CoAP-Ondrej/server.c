@@ -97,7 +97,7 @@ PROCESS_THREAD(coapv2_example_server, ev, data)
 
   uip_ipaddr_t *ipaddr;
   ipaddr = set_global_address();
-  create_rpl_dag(ipaddr);
+  //create_rpl_dag(ipaddr);
   variable=100;
   /* Initialize the REST engine. */
   rest_init_engine();

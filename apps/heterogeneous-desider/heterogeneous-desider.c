@@ -51,7 +51,7 @@ const uint8_t MAX_FLOW_ID = 10;
 int sent_wifi;
 int sent_rpl;
 int wr_rate = 1;
-const int SIMULATED_BAT_CAPACITY = 7;
+const int SIMULATED_BAT_CAPACITY = 4;
 
 
 #ifdef HETEROGENEOUS_STATISTICS
