@@ -51,7 +51,7 @@
 #define COAP_ETAG_LEN                        8  /* The maximum number of bytes for the ETag */
 
 /*OPTION_METRIC: Max bytes of option*/
-#define COAP_METRIC_LEN 		14
+#define COAP_METRIC_LEN 		16
 
 #define COAP_HEADER_VERSION_MASK             0xC0
 #define COAP_HEADER_VERSION_POSITION         6

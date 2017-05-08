@@ -97,7 +97,7 @@ response_handler(void *response)
   const uint8_t *chunk;
   int temp=0;
   char str[10];
-  int len = coap_get_payload(response, &chunk); 
+  int len = coap_get_payload(response, &chunk);
   if(len>10)
   {
     printf("Too long for number\n");
@@ -116,12 +116,22 @@ response_handler(void *response)
     else
     {
       printf("Temperature at server is: %d\n",temp);
+      //if(temp>14) {//1,2
+     //    coap_add_profile(resource_url, PROFILE_SPEED, 0, 0, server_ipaddr); //2
+      //   printf("Profile Changed\n");//2
+         //coap_set_profile(resource_url, request, &server_ipaddr); //2 //netreba
+       // if(coap_change_profile_priority(resource_url, PROFILE_LOWPOWER, &server_ipaddr, 0)==0)   //1
+        //  printf("Profile Changed\n");            //1
+	//}//1,2 ee
+        //else //1
+       //   printf("Profile cannot be changed\n"); // 1
+      //}//1,2
     }
   }
   
 //test
- // printf("|%.*s", len, (char *)chunk);
- // printf("\n"); 
+  //printf("|%.*s", len, (char *)chunk);
+  //printf("\n");
 }
 
 /**
@@ -182,9 +192,12 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
    * Possible profiles: PROFILE_LOWPOWER, PROFILE_SECURITY, PROFILE_RELIABILITY, PROFILE_SPEED, PROFILE_MULTIMEDIA
    * 4th argument: if 1 then profiles are equal, otherwise first profile has higher priority
    */    
-  coap_add_profile(resource_url, PROFILE_LOWPOWER, 0, 0, server_ipaddr);
-  coap_add_profile(resource_url,PROFILE_SPEED, PROFILE_LOWPOWER, 0, server_ipaddr); //not equal
-
+  coap_add_profile(resource_url, PROFILE_LOWPOWER, 8, 0, server_ipaddr);
+  //coap_add_profile(resource_url,PROFILE_SPEED, PROFILE_LOWPOWER, 0, server_ipaddr); //not equal
+  //coap_add_profile(resource_url,PROFILE_LOWPOWER , PROFILE_SPEED, 0, server_ipaddr);
+  //coap_add_profile(resource_url, PROFILE_SPEED, 0, 1, server_ipaddr);
+  //coap_add_profile(resource_url, PROFILE_SECURITY, 0, 1, server_ipaddr);
+  //coap_add_profile(resource_url3, PROFILE_SECURITY, PROFILE_SPEED, 1, server_ipaddr);
      
   while(1) {
     PROCESS_YIELD();
@@ -202,6 +215,18 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
 
       coap_set_payload(request, (uint8_t *)msg, sizeof(msg) - 1);
 
+
+/*printf("pred odoslanim: \n");
+    int i=0;
+    for (i = 0; i < 25; i++)
+{
+  unsigned char c = ((char*)request)[i] ;
+  printf ("%02x ", c) ;
+}
+printf("\n");*/
+
+  //printf("metriky: %d a %d\n", coap_pkt->metric[0],coap_pkt->metric[1]);
+
       COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, request,
                             response_handler);
 
@@ -209,8 +234,10 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
 
 #if PLATFORM_HAS_BUTTON
     } else if((button_sensor.value(BUTTON_SENSOR_VALUE_TYPE_LEVEL) == BUTTON_SENSOR_PRESSED_LEVEL) && (ev == sensors_event) && (data == &button_sensor)) {
- coap_add_profile(resource_url,PROFILE_SPEED, PROFILE_LOWPOWER, 0, server_ipaddr); 
-         printf("Profile Changed\n");
+       coap_change_profile_priority(resource_url, PROFILE_LOWPOWER, &server_ipaddr, 1); //1==increase, 0==decrease
+ //coap_add_profile(resource_url,PROFILE_SPEED, PROFILE_LOWPOWER, 0, server_ipaddr); 
+//coap_add_profile(resource_url, PROFILE_LOWPOWER, 0, 0, server_ipaddr); //2
+         //printf("Profile Changed\n");
 
 #endif
     }

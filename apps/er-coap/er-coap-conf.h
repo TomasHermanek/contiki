@@ -50,8 +50,8 @@
 
 /*OPTION_METRIC: Constans needed by option metric*/
 #define COAP_OPTION_METRIC_EQUAL_PROFILE     	128 //Value between 1-255, divisible by 2
-#define COAP_OPTION_METRIC_HIGHER_PROFILE   	160 //Value between 1-255, divisible by 2
-#define COAP_OPTION_METRIC_LOWER_PROFILE   	96  //Value between 1-255, divisible by 2
+#define COAP_OPTION_METRIC_HIGHER_PROFILE   	192 //Value between 1-255, divisible by 2
+#define COAP_OPTION_METRIC_LOWER_PROFILE   	64  //Value between 1-255, divisible by 2
 #define COAP_OPTION_METRIC_DECREASE_VALUE  	-16 //Divisible by 2, n*COAP_OPTION_METRIC_DECREASE_VALUE+starting metric should be 0 or 256
 #define COAP_OPTION_METRIC_INCREASE_VALUE   	16  //Divisible by 2, n*COAP_OPTION_METRIC_INCREASE_VALUE+starting metric should be 0 or 256
 

@@ -96,7 +96,7 @@ typedef struct {
   coap_content_format_t content_format; /* parse options once and store; allows setting options in random order  */
   //uint16_t flags;
 //ondrej2
-  uint8_t metric[COAP_METRIC_LEN+2];  
+  uint8_t metric[COAP_METRIC_LEN];  
   size_t metric_len;
   uint32_t max_age;
   uint8_t etag_len;
@@ -191,8 +191,8 @@ size_t coap_serialize_message(void *packet, uint8_t *buffer);
 void coap_send_message(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
                        uint16_t length);
 //ondrej
-void coap_send_message_response(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
-                  uint16_t length);
+//void coap_send_message_response(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
+//                 uint16_t length);
 //ondrej
 coap_status_t coap_parse_message(void *request, uint8_t *data,
                                  uint16_t data_len);
@@ -277,7 +277,7 @@ struct k_val coap_metrics_deserialization(uint8_t *metrics);
 void coap_metrics_serialization(void *packet, struct connection_profiles *c);
 void coap_set_profile(const char *resource_url,void *packet, uip_ipaddr_t *server_ipaddr);
 int coap_change_profile_priority(const char *resource_url, unsigned int profile, uip_ipaddr_t *server_ipaddr, uint8_t direction);
-void coap_add_profile(const char *resource_url, unsigned int profile1, unsigned int profile2, int equal, uip_ipaddr_t server_ipaddr);     
+int coap_add_profile(const char *resource_url, unsigned int profile1, unsigned int profile2, int equal, uip_ipaddr_t server_ipaddr);     
 void pair_profile_metric(unsigned int profile1, unsigned int profile2, int equal, struct connection_profiles *c);
 int set_pointer_to_metric(unsigned int profile, struct connection_profiles *c, uint8_t **p1, uint8_t **p2);
 int change_profile_metric(unsigned int profile, struct connection_profiles *c, uint8_t direction);
