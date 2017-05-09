@@ -69,7 +69,10 @@ static service_callback_t service_cbk = NULL;
 /*---------------------------------------------------------------------------*/
 
 
-/*OPTION_METRIC: */
+
+/** 
+ * OPTION_METRIC: function for receiving from changed lower layers
+ */
 int
 coap_receive_params(uint16_t len, void *data, uint16_t srcport, uip_ip6addr_t srcipaddr)
 {

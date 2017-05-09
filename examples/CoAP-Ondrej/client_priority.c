@@ -97,7 +97,7 @@ response_handler(void *response)
   const uint8_t *chunk;
   int temp=0;
   char str[10];
-  int len = coap_get_payload(response, &chunk); 
+  int len = coap_get_payload(response, &chunk);
   if(len>10)
   {
     printf("Too long for number\n");
@@ -116,12 +116,14 @@ response_handler(void *response)
     else
     {
       printf("Temperature at server is: %d\n",temp);
+      if(temp>14) {
+        if(coap_change_profile_priority(resource_url, PROFILE_LOWPOWER, &server_ipaddr, 0)==0)   //1
+          printf("Profile Changed\n");            
+        else 
+          printf("Profile cannot be changed\n"); 
+      }
     }
   }
-  
-//test
- // printf("|%.*s", len, (char *)chunk);
- // printf("\n"); 
 }
 
 /**
@@ -184,7 +186,6 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
    */    
   coap_add_profile(resource_url, PROFILE_LOWPOWER, 0, 0, server_ipaddr);
   coap_add_profile(resource_url,PROFILE_SPEED, PROFILE_LOWPOWER, 0, server_ipaddr); //not equal
-
      
   while(1) {
     PROCESS_YIELD();
@@ -202,6 +203,7 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
 
       coap_set_payload(request, (uint8_t *)msg, sizeof(msg) - 1);
 
+
       COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, request,
                             response_handler);
 
@@ -209,7 +211,7 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
 
 #if PLATFORM_HAS_BUTTON
     } else if((button_sensor.value(BUTTON_SENSOR_VALUE_TYPE_LEVEL) == BUTTON_SENSOR_PRESSED_LEVEL) && (ev == sensors_event) && (data == &button_sensor)) {
- coap_add_profile(resource_url,PROFILE_SPEED, PROFILE_LOWPOWER, 0, server_ipaddr); 
+       coap_change_profile_priority(resource_url, PROFILE_LOWPOWER, &server_ipaddr, 1); //1==increase, 0==decrease
          printf("Profile Changed\n");
 
 #endif

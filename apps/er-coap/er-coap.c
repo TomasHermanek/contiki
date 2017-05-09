@@ -75,6 +75,7 @@ char *coap_error_message = "";
 
 /*OPTION_METRIC: Used for storing added profiles*/
 LIST(connection_list);
+/*OPTION_METRIC: Declaration of memory*/
 MEMB(connections_memb, struct connection_profiles, MAX_COUNT);
 
 /*---------------------------------------------------------------------------*/
@@ -445,6 +446,7 @@ coap_send_message(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
   uip_ipaddr_copy(&udp_conn->ripaddr, addr);
   udp_conn->rport = port;
 
+   /*OPTION_METRIC: Changed function for sending*/
    heterogeneous_udp_sendto(udp_conn, data, length, addr, port);
   //uip_udp_packet_send(udp_conn, data, length);
 
@@ -951,7 +953,7 @@ coap_set_header_uri_path(void *packet, const char *path)
 /*---------------------------OPTION_METRIC: Implementation starts here-------------------------------------*/
 
 /** 
- * 
+ * Function to get metric array from parsed packet
  */
 int
 coap_get_metrics(void *packet, const int **metric)
@@ -964,6 +966,9 @@ coap_get_metrics(void *packet, const int **metric)
   return coap_pkt->metric_len;
 }
 
+/** 
+ * Function to set metric array to packet
+ */
 int 
 coap_set_metrics(void *packet, const uint8_t *metric, size_t metric_len)
 {
@@ -974,6 +979,9 @@ coap_set_metrics(void *packet, const uint8_t *metric, size_t metric_len)
   return coap_pkt->metric_len;
 }
 
+/** 
+ * Function to get metric values from packet
+ */
 struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len)
 {
   static coap_packet_t message[1];
@@ -987,14 +995,14 @@ struct k_val coap_get_k_val(uint8_t *data, uint16_t data_len)
     *p=0;
     p=p+1;
   }
-PRINTF("coap_get_val data with len: %d\n", data_len);
-    uint8_t i=0;
-    for (i = 0; i < data_len; i++)
-{
-  unsigned char c = ((char*)data)[i] ;
-  PRINTF ("%02x ", c) ;
-}
-PRINTF("\n");
+  PRINTF("coap_get_val data with len: %d\n", data_len);
+  uint8_t i=0;
+  for (i = 0; i < data_len; i++)
+  {
+    unsigned char c = ((char*)data)[i] ;
+    PRINTF ("%02x ", c) ;
+  }
+  PRINTF("\n");
   erbium_status_code = NO_ERROR;
   erbium_status_code = coap_parse_message(message, buffer, data_len);
     if(erbium_status_code == NO_ERROR) {
@@ -1010,6 +1018,9 @@ PRINTF("\n");
 
 }
 
+/** 
+ * Function to get metric values into k_val struct from metric array
+ */
 struct k_val coap_metrics_deserialization(uint8_t *metrics){
   PRINTF("Coap metric deserialization\n");
   PRINTF("1st flag number: %d\n",metrics[0]);
@@ -1042,6 +1053,9 @@ struct k_val coap_metrics_deserialization(uint8_t *metrics){
   return values;
 }
 
+/** 
+ * Function to create byte array from connection_profile struct
+ */
 void coap_metrics_serialization(void *packet, struct connection_profiles *c){
   uint8_t numbers[8] = {128, 64, 32, 16, 8, 4, 2, 1};
   uint8_t i=2;
@@ -1068,28 +1082,40 @@ void coap_metrics_serialization(void *packet, struct connection_profiles *c){
   jj++;
   p=p+1;
   }
+  PRINTF("Metrics serialized!\n");
   coap_set_metrics(packet, metrics, i);
 }
 
+/** 
+ * Function to set profile (metrics) into packet
+ */
 void coap_set_profile(const char *resource_url,void *packet, uip_ipaddr_t *server_ipaddr){
   struct connection_profiles *c = NULL;   
   for(c = list_head(connection_list); c != NULL; c = list_item_next(c)) {
-    if ((uip_ipaddr_cmp(&c->server_ipaddr, server_ipaddr)==1)&&(strcmp(c->resource_url,resource_url)==0)){//if ((uip_ipaddr_cmp(&c->server_ipaddr, &server_ipaddr)==0)&&(c->resource_url==resource_url)){
+    if ((uip_ipaddr_cmp(&c->server_ipaddr, server_ipaddr)==1)&&(strcmp(c->resource_url,resource_url)==0)){
       break;
     }
   }
-  coap_metrics_serialization(packet, c);
+  if (c==NULL)
+    printf("No record for this combination url:IP address!\n");
+  else
+    coap_metrics_serialization(packet, c);
   }
 
+/** 
+ * Function to change profile priority
+ */
 /*if direction==0 -> decrease if direction==1 -> increase*/
 int coap_change_profile_priority(const char *resource_url, unsigned int profile, uip_ipaddr_t *server_ipaddr, uint8_t direction) {
-    struct connection_profiles *c = NULL;   
+  if (check_number_profile(profile)==1)
+    return 1;
+  struct connection_profiles *c = NULL;   
   if (direction==1)
     PRINTF("Increase profile %s\n",resource_url);
   else
     PRINTF("Decrease profile %s\n",resource_url);
     for(c = list_head(connection_list); c != NULL; c = list_item_next(c)) {
-      if ((uip_ipaddr_cmp(&c->server_ipaddr, server_ipaddr)==1)&&(strcmp(c->resource_url,resource_url)==0)){//if ((uip_ipaddr_cmp(&c->server_ipaddr, &server_ipaddr)==0)&&(c->resource_url==resource_url)){
+      if ((uip_ipaddr_cmp(&c->server_ipaddr, server_ipaddr)==1)&&(strcmp(c->resource_url,resource_url)==0)){
 	break;
       }
     }
@@ -1105,11 +1131,21 @@ int coap_change_profile_priority(const char *resource_url, unsigned int profile,
     }
 }
 
-void coap_add_profile(const char *resource_url, unsigned int profile1, unsigned int profile2, int equal, uip_ipaddr_t server_ipaddr) {
+/** 
+ * Function to save profiles for connection IP:URL
+ */
+int coap_add_profile(const char *resource_url, unsigned int profile1, unsigned int profile2, int equal, uip_ipaddr_t server_ipaddr) {
+  if (check_number_profile(profile1)==1){
+    printf("Wrong 1st profile\n");
+    return 1;
+  }
+  if ((check_number_profile(profile2)==1) && (profile2!=0)){
+    printf("Wrong 2nd profile\n");
+    return 1;
+  }
   struct connection_profiles *c = NULL;   
   for(c = list_head(connection_list); c != NULL; c = list_item_next(c)) {
     if ((uip_ipaddr_cmp(&c->server_ipaddr, &server_ipaddr)==1)&&(strcmp(c->resource_url,resource_url)==0)){
-      PRINTF("same\n");
       break;
     }
   }
@@ -1117,6 +1153,7 @@ void coap_add_profile(const char *resource_url, unsigned int profile1, unsigned 
     c = memb_alloc(&connections_memb);
     if (c==NULL) {
       printf("Maximum capacity of profiles exceeded\n");
+      return 1;
     }
     else{
       PRINTF("Writing new profile\n");
@@ -1135,10 +1172,13 @@ void coap_add_profile(const char *resource_url, unsigned int profile1, unsigned 
       c->profile1 = profile1;
       c->profile2 = profile2;
       pair_profile_metric(profile1, profile2, equal, c);
-
     }
+  return 0;
 }
-      
+
+/** 
+ * Function to inicialize connection_profile values and set metric of profile
+ */      
 void pair_profile_metric(unsigned int profile1, unsigned int profile2, int equal, struct connection_profiles *c){  
   c->bandwidth=0;
   c->rem_energy=0;
@@ -1150,47 +1190,53 @@ void pair_profile_metric(unsigned int profile1, unsigned int profile2, int equal
   c->link_load=0;
   c->security=0;
   if (profile2 == 0){   
+    PRINTF("Setting one profile (%d) with value %d\n", profile1, COAP_OPTION_METRIC_EQUAL_PROFILE);
     set_one_profile(profile1, c, COAP_OPTION_METRIC_EQUAL_PROFILE );
   } else {
     if (equal){
+      PRINTF("Setting two equal profiles (%d) and (%d) with value %d\n",profile1, profile2, COAP_OPTION_METRIC_EQUAL_PROFILE);
       set_one_profile(profile1, c, COAP_OPTION_METRIC_EQUAL_PROFILE );
       set_one_profile(profile2, c, COAP_OPTION_METRIC_EQUAL_PROFILE );
     } else {
+      PRINTF("Setting ordered profiles (%d) and (%d) with values %d and %d\n",profile1, profile2, COAP_OPTION_METRIC_HIGHER_PROFILE, COAP_OPTION_METRIC_LOWER_PROFILE);
       set_one_profile(profile1, c, COAP_OPTION_METRIC_HIGHER_PROFILE );
       set_one_profile(profile2, c, COAP_OPTION_METRIC_LOWER_PROFILE );
     }
   }
 }
 
+/** 
+ * Function to set correct pointers to metrics
+ */
 int set_pointer_to_metric(unsigned int profile, struct connection_profiles *c, uint8_t **p1, uint8_t **p2){
   switch(profile) {
     case PROFILE_LOWPOWER:
-      //printf("Setting pointers for LOWPOWER\n");
+      PRINTF("Setting pointers for LOWPOWER\n");
       *p1=&(c->rem_energy);
       *p2=&(c->power_saving);
       break;
     case PROFILE_SPEED :
-//printf("Setting pointers for SPEED\n"); 
+      PRINTF("Setting pointers for SPEED\n"); 
       *p1=&(c->bandwidth);
       *p2=&(c->link_load);
       break;
     case PROFILE_RELIABILITY:
-//printf("Setting pointers for RELIABILITY\n");
+      PRINTF("Setting pointers for RELIABILITY\n");
       *p1=&(c->etx);
       *p2=&(c->efx);
       break;
     case PROFILE_MULTIMEDIA:
-//printf("Setting pointers for MULTIMEDIA\n");
+      PRINTF("Setting pointers for MULTIMEDIA\n");
       *p1=&(c->rtt);
       *p2=&(c->quality);
       break;
    case PROFILE_SECURITY:
-//printf("Setting pointers for SECURITY\n");
+      PRINTF("Setting pointers for SECURITY\n");
       *p1=&(c->security);
       *p2=&(c->security);
       break;
    case 0:
-      PRINTF("No profile\n");
+      printf("No profile\n");
       return 1;
    default:
       printf("set_pointer_to_metric unknown profile: (%u)\n", profile);
@@ -1199,7 +1245,10 @@ int set_pointer_to_metric(unsigned int profile, struct connection_profiles *c, u
   return 0;
 }
 
-int change_profile_metric(unsigned int profile, struct connection_profiles *c, uint8_t direction){
+/** 
+ * Function provides control of profile number
+ */
+int check_number_profile(unsigned int profile){
   switch(profile) {
     case PROFILE_LOWPOWER:
       break;
@@ -1212,9 +1261,16 @@ int change_profile_metric(unsigned int profile, struct connection_profiles *c, u
    case PROFILE_SECURITY:
       break;
    default:
-      printf("Unknown profile: (%u)\n", profile);
+      //printf("Unknown profile: (%u)\n", profile);
       return 1;
   }
+  return 0;
+}
+
+/** 
+ * Function is responsible for increasing or decreasing correct profile
+ */
+int change_profile_metric(unsigned int profile, struct connection_profiles *c, uint8_t direction){
   int increaser=0;
   int decreaser=0;
   if (direction==0){ //decrease
@@ -1226,49 +1282,54 @@ int change_profile_metric(unsigned int profile, struct connection_profiles *c, u
     increaser=COAP_OPTION_METRIC_INCREASE_VALUE;
     decreaser=COAP_OPTION_METRIC_DECREASE_VALUE;
   }
-PRINTF ("ulozene profly: %d, %d\n",c->profile1, c->profile2);
      if ((c->profile1!=profile)&&(c->profile2!=profile)){
-       PRINTF("Wrong profile: (%u)\n", profile);
+       printf("Wrong profile: (%u)\n", profile);
        return 1;
      } else if (c->profile1==profile){
-       if (change_one_profile(c->profile1, c, increaser)!=0)
+       if (change_one_profile(c->profile1, c, increaser)!=0){
+         PRINTF("First try - cannot change profile: (%d)\n",c->profile1);
          if (change_one_profile(c->profile2, c, decreaser)!=0){
-            PRINTF("Cannot change metric of profile2\n");
+            printf("Cannot change metric of both profiles\n");
             return 1;
          }
+       }
      }else{
-       if (change_one_profile(c->profile2, c, increaser)!=0)
+       if (change_one_profile(c->profile2, c, increaser)!=0){
+         PRINTF("First try - cannot change profile: (%d)\n",c->profile2);
          if (change_one_profile(c->profile1, c, decreaser)!=0){
-            PRINTF("Cannot change metric of profile2\n");
+            printf("Cannot change metric of both profiles\n");
             return 1;
          }
+       }
      } 
   return 0;
 }
 
+/** 
+ * computing and setting new metric value
+ */
 int change_one_profile(unsigned int profile, struct connection_profiles *c, int value){ 
   uint8_t *p2, *p1;
   //if (set_pointer_to_metric(profile, c, &p1, &p2)!=0)
   if (profile==0)
     return 1;
-set_pointer_to_metric(profile, c, &p1, &p2);
-  /*if((*p1==1) && (value>0)){
-    *p1=0;
-}*/
+  set_pointer_to_metric(profile, c, &p1, &p2);
+  if((*p1==1) && (value>0)){
+    *p1=(uint8_t)0;
+  }
   if((*p1==255) && (value<0)){
-    *p1=256;
-}
+    value++;
+  }
   int a = (int)*p1+(int)value;
-  
   PRINTF("Computing new_metric: %d = %d + %d\n",a,*p1,value);
   switch(a) {
     case 0:
-      *p1=1;
-      *p2=1;
+      *p1=(uint8_t)1;
+      *p2=(uint8_t)1;
       return 0;
     case 256 :
-      *p1=255;
-      *p2=255;
+      *p1=(uint8_t)255;
+      *p2=(uint8_t)255;
       return 0;
     default:
       if(a<0)
@@ -1283,6 +1344,9 @@ set_pointer_to_metric(profile, c, &p1, &p2);
   }
 }
 
+/** 
+ * assign of values to pointers
+ */
 void set_one_profile(unsigned int profile, struct connection_profiles *c, int value){ 
   uint8_t *p2, *p1;
   set_pointer_to_metric(profile, c, &p1, &p2);
