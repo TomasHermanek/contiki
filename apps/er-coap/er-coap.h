@@ -94,10 +94,10 @@ typedef struct {
   uint8_t options[COAP_OPTION_SIZE1 / OPTION_MAP_SIZE + 1]; /* bitmap to check if option is set */
 
   coap_content_format_t content_format; /* parse options once and store; allows setting options in random order  */
-  //uint16_t flags;
-//ondrej2
+ /*---------------------------OPTION_METRIC: changes starts here-------------------------------------*/
   uint8_t metric[COAP_METRIC_LEN];  
   size_t metric_len;
+/*---------------------------OPTION_METRIC: changes ends here-------------------------------------*/
   uint32_t max_age;
   uint8_t etag_len;
   uint8_t etag[COAP_ETAG_LEN];
@@ -131,9 +131,6 @@ typedef struct {
   size_t uri_query_len;
   const char *uri_query;
   uint8_t if_none_match;
-
-//Ondrej
-
   uint16_t payload_len;
   uint8_t *payload;
 } coap_packet_t;
@@ -190,10 +187,6 @@ void coap_init_message(void *packet, coap_message_type_t type, uint8_t code,
 size_t coap_serialize_message(void *packet, uint8_t *buffer);
 void coap_send_message(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
                        uint16_t length);
-//ondrej
-//void coap_send_message_response(uip_ipaddr_t *addr, uint16_t port, uint8_t *data,
-//                 uint16_t length);
-//ondrej
 coap_status_t coap_parse_message(void *request, uint8_t *data,
                                  uint16_t data_len);
 
@@ -239,7 +232,7 @@ int coap_set_header_uri_host(void *packet, const char *host);
 int coap_get_header_uri_path(void *packet, const char **path); /* in-place string might not be 0-terminated. */
 int coap_set_header_uri_path(void *packet, const char *path);
 
-//ondrej dole
+/*---------------------------OPTION_METRIC:  starts here-------------------------------------*/
 
 int coap_get_metrics(void *packet, const int **metric);
 int coap_set_metrics(void *packet, const uint8_t *metric, size_t metric_len);
@@ -284,7 +277,7 @@ int change_profile_metric(unsigned int profile, struct connection_profiles *c, u
 int change_one_profile(unsigned int profile, struct connection_profiles *c, int value);
 void set_one_profile(unsigned int profile, struct connection_profiles *c, int value);
 
-//ondrej hore
+/*---------------------------OPTION_METRIC:  ends here-------------------------------------*/
 
 int coap_get_header_uri_query(void *packet, const char **query); /* in-place string might not be 0-terminated. */
 int coap_set_header_uri_query(void *packet, const char *query);

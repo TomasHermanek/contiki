@@ -216,16 +216,6 @@ PROCESS_THREAD(coapv2_example_client, ev, data)
       coap_set_payload(request, (uint8_t *)msg, sizeof(msg) - 1);
 
 
-/*printf("pred odoslanim: \n");
-    int i=0;
-    for (i = 0; i < 25; i++)
-{
-  unsigned char c = ((char*)request)[i] ;
-  printf ("%02x ", c) ;
-}
-printf("\n");*/
-
-  //printf("metriky: %d a %d\n", coap_pkt->metric[0],coap_pkt->metric[1]);
 
       COAP_BLOCKING_REQUEST(&server_ipaddr, REMOTE_PORT, request,
                             response_handler);

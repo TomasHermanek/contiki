@@ -51,6 +51,7 @@
 typedef coap_packet_t rest_request_t;
 typedef coap_packet_t rest_response_t;
 
+/*OPTION_METRIC: receive from changed lower layers*/
 int coap_receive_params(uint16_t len, void *data, uint16_t srcport, uip_ip6addr_t srcipaddr);
 
 void coap_init_engine(void);
