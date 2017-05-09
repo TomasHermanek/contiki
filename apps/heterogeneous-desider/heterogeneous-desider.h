@@ -75,11 +75,14 @@ typedef struct tech_struct {
     uint8_t type;
 } tech_struct;
 
+#define METRICS_VALIDITY 50
+
 /**
  * Structure defines metrics unit
  */
 typedef struct metrics_struct {
     struct metrics_struct *next;
+    uint8_t validity;
     uint8_t technology;
     uint8_t energy;
     uint8_t bandwidth;

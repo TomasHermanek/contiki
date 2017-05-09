@@ -10,6 +10,7 @@
 
 #include "serial-connection.h"
 #include "blinker.h"
+#include "purger.h"
 
 #include "contiki.h"
 #include "lib/random.h"
@@ -96,6 +97,20 @@ metrics_struct *find_metrics_by_tech(uint8_t type) {
 }
 
 /**
+ * Renews validity for metric record specified by type
+ */
+void renew_metrics_validity(uint8_t type) {
+    metrics_struct *s;
+
+    for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
+        if (s->technology == type) {
+            s->validity = METRICS_VALIDITY;
+            break;
+        }
+    }
+}
+
+/**
  * Allows to find metrics by technology
  *
  * @param tech
@@ -131,6 +146,58 @@ flow_struct *find_flow(const uip_ipaddr_t *to, uint8_t en, uint8_t bw, uint8_t e
     return s;
 }
 
+/**
+ * Decreasing metrics validity
+ */
+void purge_flows() {
+    struct flow_struct *s;
+
+    for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
+        if (s->validity <= PURGE_INTERVAL) {
+            list_remove(flow_list, s);
+            memb_free(&flow_memb, s);
+        }
+        else {
+            s->validity -= PURGE_INTERVAL;
+        }
+    }
+}
+
+/**
+ * Removes all flows, specified by tech_type
+ *
+ * @param tech_type
+ */
+void remove_flows_by_tech(uint8_t tech_type) {
+    struct flow_struct *s;
+
+    for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
+        if (s->technology == tech_type) {
+            list_remove(flow_list, s);
+            memb_free(&flow_memb, s);
+        }
+    }
+}
+
+/**
+ * Decreasing metrics validity except metrics with RPL tech type
+ */
+void  purge_metrics() {
+    struct metrics_struct *s;
+
+    for (s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
+        if (s->technology != RPL_TECHNOLOGY) {
+            if (s->validity <= PURGE_INTERVAL) {
+                list_remove(metrics_list, s);
+                remove_flows_by_tech(s->technology);
+                memb_free(&metrics_memb, s);
+            }
+            else {
+                s->validity -= PURGE_INTERVAL;
+            }
+        }
+    }
+}
 
 /**
  * Allows to find flow by dst IPv6 address and metric keys
@@ -144,14 +211,7 @@ flow_struct *find_flow(const uip_ipaddr_t *to, uint8_t en, uint8_t bw, uint8_t e
 flow_struct *find_best_flow(const uip_ipaddr_t *to, uint8_t en, uint8_t bw, uint8_t etx) {
     struct flow_struct *s, *best = NULL;
 
-//    printf("finding best flow: ");
-//    uip_debug_ipaddr_print(to);
-//    printf(" %d %d %d \n", en, bw, etx);
-
     for(s = list_head(flow_list); s != NULL; s = list_item_next(s)) {
-//        printf("comparing with: ");
-//        uip_debug_ipaddr_print(&s->to);
-//        printf(" %d %d %d %d\n", s->energy, s->bandwidth, s->etx, s->flags);
         if (uip_ipaddr_cmp(to, &s->to) && en == s->energy && bw == s->bandwidth && etx == s->etx)
             if (best) {
                 if (s->flags & UP)
@@ -160,11 +220,6 @@ flow_struct *find_best_flow(const uip_ipaddr_t *to, uint8_t en, uint8_t bw, uint
             else
                 best = s;
     }
-//    if (best) {
-//        printf("Found: ");
-//        uip_debug_ipaddr_print(&best->to);
-//        printf(" %d %d %d %d\n", best->energy, best->bandwidth, best->etx, best->flags);
-//    }
     return best;
 }
 
@@ -376,6 +431,7 @@ metrics_struct *add_metrics(uint8_t technology, uint8_t energy, uint8_t bandwidt
     metrics->energy = energy;
     metrics->bandwidth = bandwidth;
     metrics->etx = etx;
+    metrics->validity = METRICS_VALIDITY;
     return metrics;
 }
 
@@ -444,9 +500,9 @@ void print_energy_counter() {
 void print_metrics_table() {
     struct metrics_struct *s;
 
-    printf("types(1->wifi, 2->RPL): energy, bandwidth, etx\n");
+    printf("types(1->wifi, 2->RPL)/validity: energy, bandwidth, etx\n");
     for(s = list_head(metrics_list); s != NULL; s = list_item_next(s)) {
-        printf("Metrics tech(%d):  %d %d %d\n", s->technology, s->energy, s->bandwidth, s->etx);
+        printf("Metrics tech(%d)/%d:  %d %d %d\n", s->technology, s->validity, s->energy, s->bandwidth, s->etx);
     }
 }
 
@@ -516,9 +572,6 @@ void fill_keys(const void *data,uint8_t len, uint8_t *en, uint8_t *bw, uint8_t *
     *en = values.rem_energy;
     *bw = values.bandwidth;
    *etx = values.efx;
-    //*en = 1;
-   // *bw = 10;
-    //*etx = 0;
 #endif
 }
 
@@ -531,9 +584,6 @@ void fill_keys(const void *data,uint8_t len, uint8_t *en, uint8_t *bw, uint8_t *
  */
 void add_from_flow(const uip_ipaddr_t *from, flow_struct *dst_flow, uint8_t tech_type) {
     uint8_t k_en = dst_flow->energy, k_bw = dst_flow->bandwidth, k_etx = dst_flow->etx;
-//    tech_struct *source_tech = find_tech_by_type(tech_type);
-
-//    add_flow(from, source_tech, k_en, k_bw, k_etx);
 
     PRINTF("Adding from flow\n");
 
@@ -544,7 +594,6 @@ void add_from_flow(const uip_ipaddr_t *from, flow_struct *dst_flow, uint8_t tech
         flow = add_flow(from, tech_type, k_en, k_bw, k_etx);
         flow->flags = dst_flow->flags | UP;
     }
-//    tech_struct *dst_technology = dst_flow->technology;
 }
 
 /**
@@ -673,6 +722,7 @@ int heterogeneous_forwarding_callback() {
     }
 
     if (flow) {
+        flow->validity = FLOW_VALIDITY;
         PRINTF("R: flow flags: %d\n", flow->flags);
         if (flow->technology == WIFI_TECHNOLOGY && flow->flags & PND) {    // need to ask for route (pending flag active)
             PRINTF("R: Try pending flow\n");
@@ -724,6 +774,7 @@ int heterogeneous_udp_sendto(struct uip_udp_conn *c, const void *data, uint8_t l
     }
 
     if (flow) {
+        flow->validity = FLOW_VALIDITY;
         if (flow->flags & PND) {    // need to ask for route (pending flag active)
             PROCESS_CONTEXT_BEGIN(&serial_connection);
             ask_for_route(flow);
@@ -863,5 +914,6 @@ void init_module(uint8_t mode, const uip_ipaddr_t *ip) {
     add_metrics(RPL_TECHNOLOGY, DEFAULT_RPL_EN, DEFAULT_RPL_BW, DEFAULT_RPL_ETX);
     process_start(&serial_connection, NULL);
     process_start(&blinker, NULL);
+    process_start(&purger, NULL);
 }
 

@@ -258,9 +258,10 @@ int handle_commands(char *data, uint8_t len) {
 
         if (!flow) {
             PRINTF("F: Flow not found, creating new one\n");
-            flow_struct *flow = add_flow(&receiver_ip, RPL_TECHNOLOGY, k_en, k_bw, k_etx);
+            flow = add_flow(&receiver_ip, RPL_TECHNOLOGY, k_en, k_bw, k_etx);
         }
 
+        flow->validity = FLOW_VALIDITY;
         PRINTF("Forwarding packet from WIFI using RPL: ");
         PRINT6ADDR(&receiver_ip);
         PRINTF("\n");
@@ -343,6 +344,7 @@ int handle_requests(char *data, int len) {
         }
 
         if (flow) {
+            flow->validity = FLOW_VALIDITY;
             PRINTF("W: flow flags: %d\n", flow->flags);
             if (flow->technology == RPL_TECHNOLOGY) {
                 printf("$p;%d;0;\n", question_id);
@@ -407,6 +409,9 @@ int handle_responses(char *data, int len) {
             flow->flags &= ~PND;            // removes pending flag
         }
         return 1;
+    }
+    if (data[1] == 'w') {
+        renew_metrics_validity(WIFI_TECHNOLOGY);
     }
     return 0;
 }

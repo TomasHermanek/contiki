@@ -1,1 +1,1 @@
-heterogeneous-desider_src = heterogeneous-desider.c serial-connection.c blinker.c
+heterogeneous-desider_src = heterogeneous-desider.c serial-connection.c blinker.c purger.c
